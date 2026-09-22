@@ -1,0 +1,6 @@
+spring:
+  application:
+    name: assessment-service
+
+  config:
+    import: configserver:http://localhost:8888

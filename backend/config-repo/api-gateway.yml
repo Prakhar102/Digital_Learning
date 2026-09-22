@@ -1,0 +1,117 @@
+spring:
+  cloud:
+    gateway:
+      server:
+        webmvc:
+          routes:
+
+            # IDENTITY SERVICE
+
+            - id: auth-route
+              uri: lb://IDENTITY-SERVICE
+              predicates:
+                - Path=/api/auth/**
+
+            - id: users-route
+              uri: lb://IDENTITY-SERVICE
+              predicates:
+                - Path=/api/users/**
+
+            - id: admin-route
+              uri: lb://IDENTITY-SERVICE
+              predicates:
+                - Path=/api/admin/**
+
+            - id: instructor-route
+              uri: lb://IDENTITY-SERVICE
+              predicates:
+                - Path=/api/instructor/**
+
+            - id: learner-route
+              uri: lb://IDENTITY-SERVICE
+              predicates:
+                - Path=/api/learner/**
+
+
+            # CATALOG SERVICE
+
+            - id: catalog-service
+              uri: lb://CATALOG-SERVICE
+              predicates:
+                - Path=/api/categories/**
+
+            - id: courses-route
+              uri: lb://CATALOG-SERVICE
+              predicates:
+                - Path=/api/courses/**
+
+            - id: modules-route
+              uri: lb://CATALOG-SERVICE
+              predicates:
+                - Path=/api/modules/**
+
+            - id: lessons-route
+              uri: lb://CATALOG-SERVICE
+              predicates:
+                - Path=/api/lessons/**
+
+
+            # PROGRESS SERVICE
+
+            - id: progress-route
+              uri: lb://PROGRESS-SERVICE
+              predicates:
+                - Path=/api/progress/**
+
+            - id: enrollment-route
+              uri: lb://PROGRESS-SERVICE
+              predicates:
+                - Path=/api/enrollments/**
+
+
+            # ASSESSMENT SERVICE
+
+            - id: assessment-route
+              uri: lb://ASSESSMENT-SERVICE
+              predicates:
+                - Path=/api/assessments/**
+
+            - id: question-route
+              uri: lb://ASSESSMENT-SERVICE
+              predicates:
+                - Path=/api/questions/**
+
+            - id: attempts-route
+              uri: lb://ASSESSMENT-SERVICE
+              predicates:
+                - Path=/api/attempts/**
+
+
+            # CERTIFICATION SERVICE
+
+            - id: certification-route
+              uri: lb://CERTIFICATION-SERVICE
+              predicates:
+                - Path=/api/certificates/**
+
+
+            # NOTIFICATION SERVICE
+
+            - id: notification-route
+              uri: lb://NOTIFICATION-SERVICE
+              predicates:
+                - Path=/api/notifications/**
+
+
+            # ASSIGNMENT SERVICE
+
+            - id: assignment-route
+              uri: lb://ASSIGNMENT-SERVICE
+              predicates:
+                - Path=/api/assignments/**
+
+            - id: submission-route
+              uri: lb://ASSIGNMENT-SERVICE
+              predicates:
+                - Path=/api/submissions/**
+            
