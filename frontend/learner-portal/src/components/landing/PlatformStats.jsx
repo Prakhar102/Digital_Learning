@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import FadeInSection from "../common/FadeInSection";
 
@@ -7,35 +8,104 @@ import {
   FaAward,
   FaChartLine,
 } from "react-icons/fa";
-
-const stats = [
-  {
-    icon: FaBookOpen,
-    value: "350+",
-    label: "Courses",
-    color: "#C98A3D",
-  },
-  {
-    icon: FaClipboardCheck,
-    value: "850+",
-    label: "Assessments",
-    color: "#3E7C74",
-  },
-  {
-    icon: FaAward,
-    value: "5,200+",
-    label: "Certificates Issued",
-    color: "#C98A3D",
-  },
-  {
-    icon: FaChartLine,
-    value: "98%",
-    label: "Completion Rate",
-    color: "#3E7C74",
-  },
-];
+import { getAdminStats } from "../../services/adminService";
+import { getAllCourses } from "../../services/courseService";
+import { getAllAssessments } from "../../services/assessmentService";
 
 function PlatformStats() {
+  const [learnerCount, setLearnerCount] = useState(0);
+  const [courseCount, setCourseCount] = useState(0);
+  const [assessmentCount, setAssessmentCount] = useState(0);
+  const [certCount, setCertCount] = useState(0);
+  const [completionRate, setCompletionRate] = useState("0%");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchRealTimeStats = async () => {
+      try {
+        const [statsRes, coursesRes, assessRes] = await Promise.allSettled([
+          getAdminStats(),
+          getAllCourses(),
+          getAllAssessments(),
+        ]);
+
+        if (!isMounted) return;
+
+        // Dynamic courses
+        if (coursesRes.status === "fulfilled" && Array.isArray(coursesRes.value)) {
+          setCourseCount(coursesRes.value.length);
+        } else {
+          setCourseCount(0);
+        }
+
+        // Dynamic assessments
+        if (assessRes.status === "fulfilled" && Array.isArray(assessRes.value)) {
+          setAssessmentCount(assessRes.value.length);
+        } else {
+          setAssessmentCount(0);
+        }
+
+        // Dynamic admin & platform telemetry stats
+        if (statsRes.status === "fulfilled" && statsRes.value) {
+          const data = statsRes.value;
+          setLearnerCount(data.totalLearners || data.activeLearners || 0);
+          setCertCount(data.totalCertificates || data.certificatesIssued || 0);
+          if (data.completionRate !== undefined) {
+            setCompletionRate(`${data.completionRate}%`);
+          } else if (data.totalEnrollments && data.completedEnrollments) {
+            const rate = Math.round((data.completedEnrollments / data.totalEnrollments) * 100);
+            setCompletionRate(`${rate}%`);
+          } else {
+            setCompletionRate("0%");
+          }
+        } else {
+          // If no admin stats or 0 records in DB
+          setLearnerCount((prev) => (prev > 0 ? prev : 0));
+          setCertCount((prev) => (prev > 0 ? prev : 0));
+        }
+      } catch (err) {
+        console.error("Error fetching live platform stats:", err);
+      }
+    };
+
+    fetchRealTimeStats();
+
+    // Poll live platform telemetry every 10 seconds
+    const interval = setInterval(fetchRealTimeStats, 10000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, []);
+
+  const stats = [
+    {
+      icon: FaBookOpen,
+      value: courseCount.toLocaleString(),
+      label: "Courses",
+      color: "#C98A3D",
+    },
+    {
+      icon: FaClipboardCheck,
+      value: assessmentCount.toLocaleString(),
+      label: "Assessments",
+      color: "#3E7C74",
+    },
+    {
+      icon: FaAward,
+      value: certCount.toLocaleString(),
+      label: "Certificates Issued",
+      color: "#C98A3D",
+    },
+    {
+      icon: FaChartLine,
+      value: completionRate,
+      label: "Completion Rate",
+      color: "#3E7C74",
+    },
+  ];
+
   return (
     <FadeInSection>
       <section
@@ -73,7 +143,7 @@ function PlatformStats() {
             text-[#C98A3D]
             "
           >
-            12,500+
+            {learnerCount.toLocaleString()}
           </h2>
 
           <p

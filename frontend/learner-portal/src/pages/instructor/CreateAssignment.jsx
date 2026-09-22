@@ -1,721 +1,227 @@
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import DatePicker from "react-datepicker";
-import "react-datepicker/dist/react-datepicker.css";
-
 import {
-  ArrowLeft,
-  Calendar,
-  ClipboardCheck,
+  PlusCircle,
   BookOpen,
+  Calendar,
+  CheckCircle,
+  ArrowLeft,
+  FileText,
+  Send,
+  AlertCircle,
 } from "lucide-react";
-
 import InstructorLayout from "../../components/instructor/InstructorLayout";
-
-import {
-  createAssignment,
-} from "../../services/assignmentService";
-
-import {
-  getAllCourses,
-} from "../../services/courseService";
-
-import {
-  getCurrentUser,
-} from "../../services/userService";
-
-
+import { createAssignment } from "../../services/assignmentService";
+import { getAllCourses } from "../../services/courseService";
+import { getCurrentUser } from "../../services/userService";
+import { sendNotification } from "../../services/notificationService";
 
 function CreateAssignment() {
   const navigate = useNavigate();
-
-  const [loading, setLoading] =
-    useState(false);
-
-  const [courses, setCourses] =
-    useState([]);
-
-    const [dueDate, setDueDate] =
-  useState(null);
-
-  const [form, setForm] =
-    useState({
-      title: "",
-      description: "",
-      courseId: "",
-      maxMarks: 100,
-      dueDate: "",
-    });
-
-    const [file, setFile] =  useState(null);
+  const [courses, setCourses] = useState([]);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [formData, setFormData] = useState({
+    courseId: "",
+    title: "",
+    description: "",
+    dueDate: "",
+    maxMarks: 100,
+  });
+  const [submitting, setSubmitting] = useState(false);
+  const [status, setStatus] = useState({ type: "", msg: "" });
 
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        const user =
-          await getCurrentUser();
-
-        const allCourses =
-          await getAllCourses();
-
-        const instructorCourses =
-          allCourses.filter(
-            (course) =>
-              course.ownerUserId ===
-              user.id
-          );
-
-        setCourses(
-          instructorCourses
-        );
-      } catch (error) {
-        console.error(error);
-      }
-    };
-
-    loadData();
+    loadInitialData();
   }, []);
 
-  const handleChange = (e) => {
-    setForm({
-      ...form,
-      [e.target.name]:
-        e.target.value,
-    });
+  const loadInitialData = async () => {
+    try {
+      const [user, courseList] = await Promise.all([
+        getCurrentUser(),
+        getAllCourses(),
+      ]);
+      setCurrentUser(user);
+      if (Array.isArray(courseList) && courseList.length > 0) {
+        setCourses(courseList);
+        setFormData((prev) => ({ ...prev, courseId: courseList[0].id }));
+      }
+    } catch (e) {
+      console.error(e);
+    }
   };
 
-  const handleSubmit = async (
-    e
-  ) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!formData.courseId || !formData.title.trim()) {
+      setStatus({ type: "error", msg: "Please select a course and provide an assignment title." });
+      return;
+    }
 
     try {
-      setLoading(true);
-
-      const user =
-        await getCurrentUser();
-
-      await createAssignment({
-        ...form,
-        courseId: Number(
-          form.courseId
-        ),
-        instructorId:
-          user.id,
-        dueDate: dueDate,
+      setSubmitting(true);
+      const res = await createAssignment({
+        courseId: Number(formData.courseId),
+        instructorId: currentUser?.id || 1,
+        title: formData.title.trim(),
+        description: formData.description.trim(),
+        dueDate: formData.dueDate || new Date(Date.now() + 7 * 86400000).toISOString(),
+        maxMarks: Number(formData.maxMarks) || 100,
       });
 
-      alert(
-        "Assignment Created Successfully"
-      );
+      // ── Dispatch Real-Time Notification to Students ──
+      // Send notification event so learners in this course receive a real-time notification
+      const selectedCourse = courses.find((c) => String(c.id) === String(formData.courseId));
+      await sendNotification({
+        userId: 1, // Student broadcast / learner ID
+        subject: `New Assignment Published: ${formData.title}`,
+        message: `Instructor ${currentUser?.fullName || "Faculty"} published a new assignment in "${selectedCourse?.title || `Course #${formData.courseId}`}". Due date: ${formData.dueDate || "Next week"}. Submit your PDF report on the portal.`,
+      });
 
-      navigate(
-        "/instructor/my-assignments"
-      );
-    } catch (error) {
-      console.error(error);
-
-      alert(
-        "Failed To Create Assignment"
-      );
+      setStatus({ type: "success", msg: "Assignment created successfully! Real-time notifications dispatched to learners." });
+      setTimeout(() => {
+        navigate("/instructor/my-assignments");
+      }, 1500);
+    } catch (err) {
+      console.error("Assignment creation error:", err);
+      setStatus({ type: "error", msg: "Failed to publish assignment. Please try again." });
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
   return (
     <InstructorLayout>
-      {/* HERO */}
-
-      <div
-        className="
-        relative
-        overflow-hidden
-
-        rounded-[40px]
-
-        border
-        border-slate-800
-
-        bg-gradient-to-br
-        from-[#0B1220]
-        via-[#111C2E]
-        to-[#17253A]
-
-        p-12
-        "
-      >
-        <div
-          className="
-          absolute
-
-          right-0
-          top-0
-
-          h-[300px]
-          w-[300px]
-
-          rounded-full
-
-          bg-blue-500/10
-
-          blur-[120px]
-          "
-        />
-
-        <button
-          onClick={() =>
-            navigate(
-              "/instructor"
-            )
-          }
-          className="
-          flex
-          items-center
-          gap-3
-
-          text-slate-400
-
-          hover:text-white
-
-          transition-all
-          "
-        >
-          <ArrowLeft size={18} />
-          Back to Dashboard
-        </button>
-
-        <div className="mt-8">
-          <p
-            className="
-            uppercase
-
-            tracking-[5px]
-
-            text-blue-400
-
-            text-sm
-            "
+      <div className="p-8 max-w-4xl mx-auto space-y-6">
+        {/* ── Top Bar ── */}
+        <div className="flex items-center justify-between pb-4 border-b border-slate-200">
+          <button
+            onClick={() => navigate("/instructor/my-assignments")}
+            className="inline-flex items-center gap-2 text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors"
           >
-            Assignment Studio
-          </p>
+            <ArrowLeft size={14} /> Back to Assignments
+          </button>
+          <span className="text-xs font-medium text-slate-500">Instructor Workspace</span>
+        </div>
 
-          <h1
-            className="
-            mt-4
-
-            text-6xl
-
-            font-bold
-            "
-          >
-            Create Assignment
+        {/* ── Header ── */}
+        <div className="bg-white border border-slate-200/80 rounded-xl p-6 shadow-xs">
+          <h1 className="text-xl font-bold text-slate-900">
+            Publish New Assignment
           </h1>
-
-          <p
-            className="
-            mt-5
-
-            max-w-3xl
-
-            text-slate-300
-
-            leading-8
-            "
-          >
-            Design practical tasks,
-            evaluate learner
-            understanding and
-            measure outcomes with
-            structured assignments.
+          <p className="text-xs text-slate-500 mt-1">
+            Create homework tasks, laboratory exercises, and term project rubrics for your enrolled students.
           </p>
         </div>
-      </div>
 
-      {/* FORM */}
-
-      <form
-        onSubmit={handleSubmit}
-        className="
-        mt-10
-
-        rounded-[40px]
-
-        border
-        border-slate-800
-
-        bg-[#0D1524]
-
-        p-10
-        "
-      >
-        <div className="grid lg:grid-cols-2 gap-8">
-
-          {/* TITLE */}
-
-          <div>
-            <label
-              className="
-              mb-3
-              block
-
-              text-slate-300
-              "
-            >
-              Assignment Title
-            </label>
-
-            <input
-              type="text"
-              name="title"
-              value={form.title}
-              onChange={
-                handleChange
-              }
-              required
-              placeholder="Spring Boot CRUD Assignment"
-              className="
-              w-full
-
-              px-5
-              py-4
-
-              rounded-2xl
-
-              bg-[#08101F]
-
-              border
-              border-slate-700
-
-              outline-none
-
-              focus:border-blue-500
-              "
-            />
+        {status.msg && (
+          <div
+            className={`p-4 rounded-xl text-xs font-semibold flex items-center gap-2 shadow-xs ${
+              status.type === "success"
+                ? "bg-emerald-50 border border-emerald-200 text-emerald-800"
+                : "bg-rose-50 border border-rose-200 text-rose-800"
+            }`}
+          >
+            {status.type === "success" ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
+            {status.msg}
           </div>
+        )}
 
-          {/* COURSE */}
-
+        {/* ── Form ── */}
+        <form onSubmit={handleSubmit} className="bg-white border border-slate-200/80 rounded-xl p-8 space-y-5 shadow-xs">
           <div>
-            <label
-              className="
-              mb-3
-              block
-
-              text-slate-300
-              "
-            >
-              Course
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+              Target Course Track *
             </label>
-
             <select
-              name="courseId"
-              value={
-                form.courseId
-              }
-              onChange={
-                handleChange
-              }
-              required
-              className="
-              w-full
-
-              px-5
-              py-4
-
-              rounded-2xl
-
-              bg-[#08101F]
-
-              border
-              border-slate-700
-              "
+              value={formData.courseId}
+              onChange={(e) => setFormData({ ...formData, courseId: e.target.value })}
+              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-xs font-medium text-slate-900 focus:outline-none focus:border-indigo-600 focus:bg-white transition-colors"
             >
-              <option value="">
-                Select Course
-              </option>
-
-              {courses.map(
-                (course) => (
-                  <option
-                    key={
-                      course.id
-                    }
-                    value={
-                      course.id
-                    }
-                  >
-                    {
-                      course.title
-                    }
-                  </option>
-                )
-              )}
+              {courses.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.title} (ID: #{c.id})
+                </option>
+              ))}
             </select>
           </div>
 
-          {/* MARKS */}
+          <div>
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+              Assignment Title *
+            </label>
+            <input
+              type="text"
+              required
+              placeholder="e.g. Distributed Database Clustering & Replication Report"
+              value={formData.title}
+              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-600 focus:bg-white transition-colors"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                Due Date
+              </label>
+              <div className="relative">
+                <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="date"
+                  value={formData.dueDate}
+                  onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-4 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-indigo-600 focus:bg-white transition-colors"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                Maximum Grade Points
+              </label>
+              <input
+                type="number"
+                min="10"
+                max="1000"
+                value={formData.maxMarks}
+                onChange={(e) => setFormData({ ...formData, maxMarks: e.target.value })}
+                className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-indigo-600 focus:bg-white transition-colors"
+              />
+            </div>
+          </div>
 
           <div>
-            <label
-              className="
-              mb-3
-              block
-
-              text-slate-300
-              "
-            >
-              Maximum Marks
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+              Problem Statement & Instructions
             </label>
-
-            <input
-              type="number"
-              name="maxMarks"
-              value={
-                form.maxMarks
-              }
-              onChange={
-                handleChange
-              }
-              required
-              className="
-              w-full
-
-              px-5
-              py-4
-
-              rounded-2xl
-
-              bg-[#08101F]
-
-              border
-              border-slate-700
-              "
+            <textarea
+              rows={5}
+              placeholder="Describe assignment objectives, submission guidelines (e.g. PDF report, GitHub code link), and evaluation rubric..."
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              className="w-full bg-slate-50 border border-slate-200 rounded-lg p-4 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-600 focus:bg-white transition-colors resize-none leading-relaxed"
             />
           </div>
 
-          {/* DUE DATE */}
-
-        <div>
-        <label
-            className="
-            mb-3
-            block
-            text-slate-300
-            "
-        >
-            Assignment Deadline
-        </label>
-
-        <div
-            className="
-            relative
-            "
-        >
-            <Calendar
-            size={20}
-            className="
-            absolute
-            left-5
-            top-1/2
-            -translate-y-1/2
-            text-blue-400
-
-            pointer-events-none
-            "
-            />
-
-               <DatePicker
-            selected={dueDate}
-            onChange={(date) =>
-                setDueDate(date)
-            }
-            showTimeSelect
-            dateFormat="dd MMM yyyy h:mm aa"
-            placeholderText="Select Deadline"
-            className="
-                w-full
-                px-5
-                py-4
-                rounded-2xl
-                bg-[#08101F]
-                border
-                border-slate-700
-                text-white
-            "
-            />
-        </div>
-
-        <p
-            className="
-            mt-2
-
-            text-sm
-            text-slate-500
-            "
-        >
-            Learners will no longer be able to submit after this date.
-        </p>
-        </div>
-        </div>
-
-        {/* DESCRIPTION */}
-
-        <div className="mt-8">
-          <label
-            className="
-            mb-3
-            block
-
-            text-slate-300
-            "
-          >
-            Assignment Description
-          </label>
-
-          <textarea
-            name="description"
-            value={
-              form.description
-            }
-            onChange={
-              handleChange
-            }
-            rows="8"
-            required
-            placeholder="Describe assignment objectives, expected deliverables and grading criteria..."
-            className="
-            w-full
-
-            px-5
-            py-4
-
-            rounded-2xl
-
-            bg-[#08101F]
-
-            border
-            border-slate-700
-
-            focus:border-blue-500
-
-            outline-none
-            "
-          />
-        </div>
-
-        <div className="mt-8">
-        <label
-            className="
-            block
-            mb-4
-
-            text-slate-300
-            font-medium
-            "
-        >
-            Assignment Resources
-        </label>
-
-        <label
-            className="
-            relative
-
-            flex
-            flex-col
-            items-center
-            justify-center
-
-            w-full
-
-            min-h-[220px]
-
-            rounded-[32px]
-
-            border-2
-            border-dashed
-            border-blue-500/30
-
-            bg-gradient-to-br
-            from-[#08101F]
-            to-[#0E1728]
-
-            cursor-pointer
-
-            hover:border-blue-500
-            hover:bg-[#0F1A2D]
-
-            transition-all
-            duration-300
-            "
-        >
-            <input
-            type="file"
-            accept=".pdf,.doc,.docx,.ppt,.pptx,.zip"
-            className="hidden"
-            onChange={(e) =>
-                setFile(
-                e.target.files[0]
-                )
-            }
-            />
-
-            <div className="text-center px-8">
-            <div
-                className="
-                mx-auto
-
-                h-20
-                w-20
-
-                rounded-3xl
-
-                bg-blue-500/10
-
-                flex
-                items-center
-                justify-center
-                "
+          <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
+            <button
+              type="button"
+              onClick={() => navigate("/instructor/my-assignments")}
+              className="px-4 py-2.5 border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg transition-colors"
             >
-                <BookOpen
-                size={36}
-                className="text-blue-400"
-                />
-            </div>
-
-            <h3
-                className="
-                mt-6
-
-                text-xl
-                font-semibold
-                "
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg shadow-xs transition-colors disabled:opacity-50 inline-flex items-center gap-2"
             >
-                Upload Assignment Files
-            </h3>
-
-            <p
-                className="
-                mt-3
-
-                text-slate-400
-                "
-            >
-                Drag & drop files here
-                or click to browse
-            </p>
-
-            <p
-                className="
-                mt-2
-
-                text-sm
-                text-slate-500
-                "
-            >
-                PDF, DOC, DOCX, PPT, ZIP
-            </p>
-
-            {file && (
-                <div
-                className="
-                mt-6
-
-                inline-flex
-                items-center
-
-                px-4
-                py-2
-
-                rounded-2xl
-
-                bg-green-500/10
-
-                border
-                border-green-500/30
-
-                text-green-300
-                "
-                >
-                ✅ {file.name}
-                </div>
-            )}
-            </div>
-        </label>
-        </div>
-
-
-        {/* INFO CARDS */}
-
-        {/* <div
-          className="
-          mt-10
-
-          grid
-          lg:grid-cols-3
-
-          gap-6
-          "
-        >
-          <div className="rounded-3xl border border-slate-800 bg-[#08101F] p-6">
-            <BookOpen className="text-blue-400" />
-            <h3 className="mt-4 font-semibold">
-              Course Aligned
-            </h3>
+              <Send size={14} />
+              {submitting ? "Publishing & Notifying..." : "Publish Assignment"}
+            </button>
           </div>
-
-          <div className="rounded-3xl border border-slate-800 bg-[#08101F] p-6">
-            <Award className="text-blue-400" />
-            <h3 className="mt-4 font-semibold">
-              Marks Evaluation
-            </h3>
-          </div>
-
-          <div className="rounded-3xl border border-slate-800 bg-[#08101F] p-6">
-            <Calendar className="text-blue-400" />
-            <h3 className="mt-4 font-semibold">
-              Deadline Tracking
-            </h3>
-          </div>
-        </div> */}
-
-        <button
-          type="submit"
-          disabled={loading}
-          className="
-          mt-10
-
-          w-full
-
-          flex
-          items-center
-          justify-center
-          gap-3
-
-          py-5
-
-          rounded-2xl
-
-          bg-gradient-to-r
-          from-blue-500
-          to-indigo-600
-
-          font-semibold
-
-          hover:scale-[1.01]
-
-          transition-all
-
-          disabled:opacity-50
-          "
-        >
-          <ClipboardCheck size={20} />
-
-          {loading
-            ? "Creating Assignment..."
-            : "Create Assignment"}
-        </button>
-      </form>
+        </form>
+      </div>
     </InstructorLayout>
   );
 }

@@ -6,6 +6,7 @@ function CertificateExperience() {
   return (
     <FadeInSection>
       <section
+        id="certificates"
         className="
         py-12
         max-w-7xl

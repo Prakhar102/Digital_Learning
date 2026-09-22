@@ -24,3 +24,25 @@ body {
     system-ui,
     sans-serif;
 }
+
+/* ── Global Finger Pointer for all Interactive Elements ── */
+button,
+a,
+input[type="button"],
+input[type="submit"],
+input[type="reset"],
+input[type="checkbox"],
+input[type="radio"],
+select,
+[role="button"],
+.cursor-pointer {
+  cursor: pointer !important;
+}
+
+/* Subtle physical click feel */
+button:active:not(:disabled),
+a:active,
+[role="button"]:active {
+  transform: scale(0.98);
+  transition: transform 0.08s ease-in-out;
+}

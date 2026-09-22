@@ -5,11 +5,16 @@ function Navbar() {
   const navigate = useNavigate();
 
   const scrollToSection = (id) => {
-    document
-      .getElementById(id)
-      ?.scrollIntoView({
+    const el = document.getElementById(id);
+    if (el) {
+      const navOffset = 80;
+      const elementPosition = el.getBoundingClientRect().top + window.pageYOffset;
+      const offsetPosition = Math.max(0, elementPosition - navOffset);
+      window.scrollTo({
+        top: offsetPosition,
         behavior: "smooth",
       });
+    }
   };
 
   return (

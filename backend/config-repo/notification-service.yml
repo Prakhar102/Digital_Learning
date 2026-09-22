@@ -1,18 +1,22 @@
 server:
-  port: 8086
+  port: 8087
 
 spring:
   application:
     name: notification-service
 
   datasource:
-    url: jdbc:mysql://localhost:3306/notification_db
+    url: jdbc:mysql://localhost:3306/notification_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
     username: root
     password: Prakhar@321
+    driver-class-name: com.mysql.cj.jdbc.Driver
 
   jpa:
     hibernate:
       ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
     show-sql: true
 
 eureka:

@@ -1,175 +1,154 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-
+import {
+  UserPlus,
+  ArrowLeft,
+  CheckCircle,
+  AlertCircle,
+  Mail,
+  Lock,
+  User,
+  Send,
+} from "lucide-react";
+import AdminLayout from "../../components/admin/AdminLayout";
 import { createInstructor } from "../../services/adminService";
 
 function CreateInstructor() {
   const navigate = useNavigate();
-
-  const [form, setForm] = useState({
+  const [formData, setFormData] = useState({
     fullName: "",
-    phoneNumber: "",
     email: "",
     password: "",
   });
-
-  const [loading, setLoading] =
-    useState(false);
-
-  const handleChange = (e) => {
-    setForm({
-      ...form,
-      [e.target.name]: e.target.value,
-    });
-  };
+  const [submitting, setSubmitting] = useState(false);
+  const [status, setStatus] = useState({ type: "", msg: "" });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!formData.fullName || !formData.email || !formData.password) return;
 
     try {
-      setLoading(true);
-
-      await createInstructor(form);
-
-      alert(
-        "Instructor Created Successfully"
-      );
-
-      navigate("/admin");
-    } catch (error) {
-      console.error(error);
-
-      alert(
-        error.response?.data ||
-          "Failed To Create Instructor"
-      );
+      setSubmitting(true);
+      await createInstructor(formData);
+      setStatus({ type: "success", msg: "Faculty account provisioned successfully!" });
+      setTimeout(() => {
+        navigate("/admin/instructors");
+      }, 1500);
+    } catch (err) {
+      console.error(err);
+      setStatus({ type: "error", msg: "Failed to create instructor account." });
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
   return (
-    <div
-      className="
-      min-h-screen
-      bg-[#0F1226]
-      flex
-      items-center
-      justify-center
-      px-6
-      "
-    >
-      <form
-        onSubmit={handleSubmit}
-        className="
-        w-full
-        max-w-2xl
-        bg-white/5
-        border
-        border-white/10
-        rounded-3xl
-        p-8
-        "
-      >
-        <h1
-          className="
-          text-4xl
-          font-bold
-          mb-8
-          "
+    <AdminLayout>
+      <div className="p-10 max-w-3xl mx-auto space-y-6">
+        {/* ── Top Bar ── */}
+        <button
+          onClick={() => navigate("/admin/instructors")}
+          className="inline-flex items-center gap-2 text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors"
         >
-          Create Instructor
-        </h1>
+          <ArrowLeft size={14} /> Back to Faculty Directory
+        </button>
 
-        <div className="space-y-4">
-          <input
-            type="text"
-            name="fullName"
-            placeholder="Full Name"
-            value={form.fullName}
-            onChange={handleChange}
-            required
-            className="
-            w-full
-            p-4
-            rounded-xl
-            bg-[#161A34]
-            border
-            border-white/10
-            "
-          />
-
-          <input
-            type="text"
-            name="phoneNumber"
-            placeholder="Phone Number"
-            value={form.phoneNumber}
-            onChange={handleChange}
-            required
-            className="
-            w-full
-            p-4
-            rounded-xl
-            bg-[#161A34]
-            border
-            border-white/10
-            "
-          />
-
-          <input
-            type="email"
-            name="email"
-            placeholder="Email"
-            value={form.email}
-            onChange={handleChange}
-            required
-            className="
-            w-full
-            p-4
-            rounded-xl
-            bg-[#161A34]
-            border
-            border-white/10
-            "
-          />
-
-          <input
-            type="password"
-            name="password"
-            placeholder="Password"
-            value={form.password}
-            onChange={handleChange}
-            required
-            className="
-            w-full
-            p-4
-            rounded-xl
-            bg-[#161A34]
-            border
-            border-white/10
-            "
-          />
+        {/* ── Header ── */}
+        <div className="bg-white border border-slate-200/80 rounded-xl p-6 shadow-xs">
+          <h1 className="text-xl font-bold text-slate-900">
+            Provision New Faculty Account
+          </h1>
+          <p className="text-xs text-slate-500 mt-1">
+            Grant educator credentials to author courses, publish assignments, and grade learner submissions.
+          </p>
         </div>
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="
-          mt-6
-          w-full
-          py-4
-          rounded-xl
-          bg-[#C98A3D]
-          text-[#161A34]
-          font-bold
-          "
-        >
-          {loading
-            ? "Creating..."
-            : "Create Instructor"}
-        </button>
-      </form>
-    </div>
+        {status.msg && (
+          <div
+            className={`p-4 rounded-xl text-xs font-semibold flex items-center gap-2 shadow-xs ${
+              status.type === "success"
+                ? "bg-emerald-50 border border-emerald-200 text-emerald-800"
+                : "bg-rose-50 border border-rose-200 text-rose-800"
+            }`}
+          >
+            {status.type === "success" ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
+            {status.msg}
+          </div>
+        )}
+
+        {/* ── Form ── */}
+        <form onSubmit={handleSubmit} className="bg-white border border-slate-200/80 rounded-xl p-8 space-y-5 shadow-xs">
+          <div>
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+              Full Legal Name *
+            </label>
+            <div className="relative">
+              <User size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                required
+                placeholder="Dr. Jordan Hayes"
+                value={formData.fullName}
+                onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-4 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-slate-500 focus:bg-white transition-colors"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+              Institutional Email Address *
+            </label>
+            <div className="relative">
+              <Mail size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="email"
+                required
+                placeholder="jordan.hayes@dlm-university.edu"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-4 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-slate-500 focus:bg-white transition-colors"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+              Initial Temporary Password *
+            </label>
+            <div className="relative">
+              <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="password"
+                required
+                placeholder="••••••••••••"
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-4 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-slate-500 focus:bg-white transition-colors"
+              />
+            </div>
+          </div>
+
+          <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
+            <button
+              type="button"
+              onClick={() => navigate("/admin/instructors")}
+              className="px-4 py-2.5 border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg shadow-xs transition-colors disabled:opacity-50 inline-flex items-center gap-2"
+            >
+              <Send size={14} />
+              {submitting ? "Provisioning..." : "Provision Faculty Account"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </AdminLayout>
   );
 }
 

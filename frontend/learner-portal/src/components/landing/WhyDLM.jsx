@@ -6,6 +6,7 @@ function WhyDLM() {
   return (
     <FadeInSection>
       <section
+        id="why-dlm"
         className="
         py-16
 

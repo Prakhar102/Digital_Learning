@@ -1,345 +1,135 @@
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import InstructorLayout from "../../components/instructor/InstructorLayout";
-
-import {
-  getAllCourses,
-  publishCourse,
-} from "../../services/courseService";
-
-import {
-  getCurrentUser,
-} from "../../services/userService";
-
 import {
   BookOpen,
+  PlusCircle,
   Eye,
-  Send,
+  Settings,
+  Share2,
+  FileText,
+  Clock,
+  CheckCircle,
 } from "lucide-react";
+import InstructorLayout from "../../components/instructor/InstructorLayout";
+import { getAllCourses } from "../../services/courseService";
+import { getCurrentUser } from "../../services/userService";
 
 function MyCourses() {
   const navigate = useNavigate();
+  const [courses, setCourses] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const [courses, setCourses] =
-    useState([]);
-
-  const [loading, setLoading] =
-    useState(true);
+  useEffect(() => {
+    loadCourses();
+  }, []);
 
   const loadCourses = async () => {
     try {
-      const user =
-        await getCurrentUser();
-
-      const allCourses =
-        await getAllCourses();
-
-      const instructorCourses =
-        allCourses.filter(
-          (course) =>
-            course.ownerUserId ===
-            user.id
-        );
-
-      setCourses(
-        instructorCourses
-      );
-    } catch (error) {
-      console.error(error);
+      const user = await getCurrentUser();
+      const list = await getAllCourses();
+      if (Array.isArray(list)) {
+        setCourses(list);
+      }
+    } catch (e) {
+      console.error(e);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    const init = async () => {
-      await loadCourses();
-    };
-
-    init();
-  }, []);
-
-  const handlePublish =
-    async (courseId) => {
-      try {
-        await publishCourse(
-          courseId
-        );
-
-        await loadCourses();
-
-        alert(
-          "Course Published Successfully"
-        );
-      } catch (error) {
-        console.error(error);
-
-        alert(
-          "Failed To Publish Course"
-        );
-      }
-    };
-
   return (
     <InstructorLayout>
-    <div
-      className="
-      min-h-screen
-      bg-[#07111F]
-      px-8
-      py-8
-      text-white
-      "
-    >
-      {/* HEADER */}
+      <div className="p-8 max-w-7xl mx-auto space-y-6">
+        {/* ── Header ── */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-200">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+              Authored Courses & Curricula
+            </h1>
+            <p className="text-sm text-slate-500 mt-1">
+              Organize syllabus modules, upload video lectures, and configure question banks.
+            </p>
+          </div>
 
-      <div
-        className="
-        flex
-        justify-between
-        items-center
-        "
-      >
-        <div>
-          <h1
-            className="
-            text-5xl
-            font-bold
-            "
+          <button
+            onClick={() => navigate("/instructor/create-course")}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg transition-colors shadow-xs"
           >
-            My Courses
-          </h1>
-
-          <p
-            className="
-            mt-3
-            text-slate-400
-            "
-          >
-            Manage all your courses
-          </p>
+            <PlusCircle size={14} />
+            Create Course
+          </button>
         </div>
 
-        <button
-          onClick={() =>
-            navigate(
-              "/instructor/create-course"
-            )
-          }
-          className="
-          px-6
-          py-4
-          rounded-2xl
-          bg-[#4F8CFF]
-          hover:bg-[#6AA7FF]
-          transition-all
-          font-semibold
-          "
-        >
-          Create Course
-        </button>
-      </div>
-
-      {/* CONTENT */}
-
-      {loading ? (
-        <div className="mt-12">
-          Loading...
-        </div>
-      ) : (
-        <div
-          className="
-          mt-10
-
-          grid
-          lg:grid-cols-2
-
-          gap-6
-          "
-        >
-          {courses.length === 0 ? (
-            <div
-              className="
-              p-10
-
-              rounded-[32px]
-
-              border
-              border-white/10
-
-              bg-white/[0.03]
-              "
+        {/* ── Courses Grid ── */}
+        {loading ? (
+          <div className="p-16 text-center">
+            <div className="h-6 w-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto" />
+          </div>
+        ) : courses.length === 0 ? (
+          <div className="py-20 text-center border border-dashed border-slate-200 rounded-xl bg-white shadow-xs">
+            <BookOpen size={36} className="mx-auto text-slate-300 mb-3" />
+            <p className="text-sm font-semibold text-slate-700">No courses authored yet</p>
+            <p className="text-xs text-slate-500 mt-1 mb-4">
+              Start structuring your curriculum and publishing learning content.
+            </p>
+            <button
+              onClick={() => navigate("/instructor/create-course")}
+              className="px-4 py-2 bg-indigo-600 text-white text-xs font-semibold rounded-lg hover:bg-indigo-700 transition-colors shadow-xs"
             >
-              No Courses Found
-            </div>
-          ) : (
-            courses.map(
-              (course) => (
-                <div
-                  key={course.id}
-                  className="
-                  rounded-[32px]
-
-                  border
-                  border-white/10
-
-                  bg-white/[0.03]
-
-                  hover:border-[#4F8CFF]
-
-                  transition-all
-
-                  p-8
-                  "
-                >
-                  <div
-                    className="
-                    flex
-                    justify-between
-                    items-center
-                    "
-                  >
-                    <BookOpen
-                      className="
-                      text-[#4F8CFF]
-                      "
-                    />
-
-                    <span
-                      className={`
-                        px-3
-                        py-1
-
-                        rounded-full
-
-                        text-xs
-                        font-medium
-
-                        ${
-                          course.status ===
-                          "PUBLISHED"
-                            ? "bg-green-500/20 text-green-300"
-                            : "bg-yellow-500/20 text-yellow-300"
-                        }
-                      `}
-                    >
-                      {course.status}
+              Create Course
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {courses.map((course) => (
+              <div
+                key={course.id}
+                className="bg-white border border-slate-200/80 rounded-xl p-6 flex flex-col justify-between hover:border-indigo-400 hover:shadow-xs transition-all"
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="px-2.5 py-0.5 text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded">
+                      ID #{course.id}
+                    </span>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                      course.status === "PUBLISHED"
+                        ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                        : "bg-slate-100 text-slate-600 border border-slate-200"
+                    }`}>
+                      {course.status || "PUBLISHED"}
                     </span>
                   </div>
 
-                  <h2
-                    className="
-                    mt-6
-
-                    text-2xl
-                    font-bold
-                    "
-                  >
+                  <h3 className="text-sm font-bold text-slate-900 mb-2 leading-snug">
                     {course.title}
-                  </h2>
+                  </h3>
 
-                  <p
-                    className="
-                    mt-3
-
-                    text-slate-400
-
-                    line-clamp-3
-                    "
-                  >
-                    {course.description}
+                  <p className="text-xs text-slate-500 line-clamp-3 mb-4 leading-relaxed">
+                    {course.description || "Comprehensive syllabus and technical track modules."}
                   </p>
+                </div>
 
-                  <div
-                    className="
-                    mt-6
-
-                    flex
-                    justify-between
-
-                    text-sm
-                    text-slate-400
-                    "
-                  >
-                    <span>
-                      {course.level}
-                    </span>
-
-                    <span>
-                      Course #{course.id}
-                    </span>
-                  </div>
-
-                  <div
-                    className="
-                    mt-8
-
-                    flex
-                    gap-3
-                    "
-                  >
+                <div className="pt-4 border-t border-slate-100 space-y-2">
+                  <div className="grid grid-cols-2 gap-2">
                     <button
-                      className="
-                      flex
-                      items-center
-                      gap-2
-
-                      px-4
-                      py-3
-
-                      rounded-xl
-
-                      border
-                      border-white/10
-
-                      hover:border-[#4F8CFF]
-
-                      transition-all
-                      "
+                      onClick={() => navigate(`/instructor/courses/${course.id}/content`)}
+                      className="w-full py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-semibold rounded-lg border border-slate-200 transition-colors flex items-center justify-center gap-1.5 shadow-xs"
                     >
-                      <Eye size={16} />
-
-                      View
+                      <Settings size={12} /> Modules
                     </button>
-
-                    {course.status ===
-                      "DRAFT" && (
-                      <button
-                        onClick={() =>
-                          handlePublish(
-                            course.id
-                          )
-                        }
-                        className="
-                        flex
-                        items-center
-                        gap-2
-
-                        px-4
-                        py-3
-
-                        rounded-xl
-
-                        bg-[#4F8CFF]
-
-                        hover:bg-[#6AA7FF]
-
-                        transition-all
-                        "
-                      >
-                        <Send size={16} />
-
-                        Publish
-                      </button>
-                    )}
+                    <button
+                      onClick={() => navigate(`/instructor/courses/${course.id}/assessment`)}
+                      className="w-full py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-semibold rounded-lg border border-slate-200 transition-colors flex items-center justify-center gap-1.5 shadow-xs"
+                    >
+                      <FileText size={12} /> Quiz Exam
+                    </button>
                   </div>
                 </div>
-              )
-            )
-          )}
-        </div>
-      )}
-    </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </InstructorLayout>
   );
 }
