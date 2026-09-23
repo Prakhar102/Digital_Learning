@@ -19,7 +19,7 @@ import Footer from "../../components/landing/Footer";
 
 function LandingPage() {
   return (
-    <>
+    <div className="w-full min-h-screen overflow-x-hidden relative bg-[#0F1226] text-[#F1ECE0]">
       <MouseGlow />
 
       <Particles />
@@ -28,7 +28,7 @@ function LandingPage() {
 
       <Navbar />
 
-     <HeroSection />
+      <HeroSection />
 
       <GlowDivider />
 
@@ -64,9 +64,7 @@ function LandingPage() {
 
       <GlowDivider />
       <Footer />
-
-      {/* /<RoadmapSection /> */}
-    </>
+    </div>
   );
 }
 
