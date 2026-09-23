@@ -23,7 +23,7 @@ export const getCurrentUser = async () => {
     try {
       const parsed = JSON.parse(stored);
       if (parsed && (parsed.fullName || parsed.email)) return parsed;
-    } catch {}
+    } catch { }
   }
 
   return {
@@ -42,4 +42,4 @@ export const getDashboardStats = async () => {
     },
   });
   return response.data;
-};
+};

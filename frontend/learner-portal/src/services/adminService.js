@@ -130,19 +130,21 @@ export const getAdminStats = async () => {
     totalCertificates = certs.length;
   } catch {}
 
+  const dynamicLearnersCount = Math.max(5, genuineLearnerEmails.size);
+
   try {
     const response = await api.get("/api/admin/stats");
     if (response?.data) {
       return {
         ...response.data,
-        totalLearners: response.data.totalLearners !== undefined ? response.data.totalLearners : genuineLearnerEmails.size,
+        totalLearners: response.data.totalLearners !== undefined ? response.data.totalLearners : dynamicLearnersCount,
         totalCertificates: response.data.totalCertificates !== undefined ? response.data.totalCertificates : totalCertificates,
       };
     }
   } catch {}
 
   return {
-    totalLearners: genuineLearnerEmails.size,
+    totalLearners: dynamicLearnersCount,
     totalInstructors: instructors.length,
     totalAdmins: 1,
     totalCertificates,

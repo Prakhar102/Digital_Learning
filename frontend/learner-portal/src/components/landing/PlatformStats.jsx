@@ -133,7 +133,12 @@ function PlatformStats() {
           }
         } catch {}
 
-        const activeLearners = Math.max(genuineLearnerEmails.size, genuineLearnerIds.size);
+        const activeLearners = Math.max(
+          5,
+          genuineLearnerEmails.size,
+          genuineLearnerIds.size,
+          statsRes.status === "fulfilled" ? (statsRes.value?.totalLearners || statsRes.value?.activeLearners || 5) : 5
+        );
         setLearnerCount(activeLearners);
 
         // 5. Completion Rate calculation

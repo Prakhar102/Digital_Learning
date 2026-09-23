@@ -55,11 +55,11 @@ function RegisterPage() {
       setLoading(true);
 
       await registerUser({
-  fullName: form.fullName,
-  phoneNumber: form.mobileNumber,
-  email: form.email,
-  password: form.password,
-});
+        fullName: form.fullName,
+        phoneNumber: form.mobileNumber,
+        email: form.email,
+        password: form.password,
+      });
 
       alert("Registration Successful");
 
@@ -67,7 +67,7 @@ function RegisterPage() {
     } catch (error) {
       alert(
         error.response?.data ||
-          "Registration Failed"
+        "Registration Failed"
       );
     } finally {
       setLoading(false);
@@ -147,13 +147,13 @@ function RegisterPage() {
 
             leading-none
             "
-            >
+          >
             Start
             <br />
             Your
             <br />
             Journey
-            </h1>
+          </h1>
 
           <p
             className="
@@ -177,7 +177,7 @@ function RegisterPage() {
         </div>
 
         <div
-            className="
+          className="
             relative
             z-10
 
@@ -186,56 +186,56 @@ function RegisterPage() {
 
             gap-6
             "
-            >
-            <div className="flex items-center gap-4">
-                <FaBrain
-                className="
+        >
+          <div className="flex items-center gap-4">
+            <FaBrain
+              className="
                 text-[#C98A3D]
                 text-xl
                 "
-                />
-                <span>
-                AI Recommendations
-                </span>
-            </div>
+            />
+            <span>
+              AI Recommendations
+            </span>
+          </div>
 
-            <div className="flex items-center gap-4">
-                <RiRoadMapLine
-                className="
+          <div className="flex items-center gap-4">
+            <RiRoadMapLine
+              className="
                 text-[#3E7C74]
                 text-xl
                 "
-                />
-                <span>
-                Career Discovery
-                </span>
-            </div>
+            />
+            <span>
+              Career Discovery
+            </span>
+          </div>
 
-            <div className="flex items-center gap-4">
-                <FaAward
-                className="
+          <div className="flex items-center gap-4">
+            <FaAward
+              className="
                 text-[#C98A3D]
                 text-xl
                 "
-                />
-                <span>
-                Earn Certifications
-                </span>
-            </div>
+            />
+            <span>
+              Earn Certifications
+            </span>
+          </div>
 
-            <div className="flex items-center gap-4">
-                <FaChartLine
-                className="
+          <div className="flex items-center gap-4">
+            <FaChartLine
+              className="
                 text-[#3E7C74]
                 text-xl
                 "
-                />
-                <span>
-                Track Growth
-                </span>
-            </div>
-            </div>
-            </div>
+            />
+            <span>
+              Track Growth
+            </span>
+          </div>
+        </div>
+      </div>
 
       {/* RIGHT SIDE */}
 
@@ -531,7 +531,7 @@ function RegisterPage() {
                 {showConfirmPassword ? (
                   <FaEyeSlash size={18} />
                 ) : (
-                 <FaEye size={18} />
+                  <FaEye size={18} />
                 )}
               </button>
             </div>
