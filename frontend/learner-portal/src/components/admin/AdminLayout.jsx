@@ -37,7 +37,10 @@ function AdminLayout({ children }) {
   ];
 
   const handleLogout = () => {
-    localStorage.clear();
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    localStorage.removeItem("role");
     navigate("/login");
   };
 

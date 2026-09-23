@@ -1,20 +1,25 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  PlusCircle,
-  BookOpen,
   Calendar,
   CheckCircle,
   ArrowLeft,
-  FileText,
   Send,
   AlertCircle,
+  Upload,
+  FileText,
+  FileCode,
+  Trash2,
+  Eye,
+  Download,
+  X,
+  FileCheck,
 } from "lucide-react";
-import InstructorLayout from "../../components/instructor/InstructorLayout";
 import { createAssignment } from "../../services/assignmentService";
 import { getAllCourses } from "../../services/courseService";
 import { getCurrentUser } from "../../services/userService";
 import { sendNotification } from "../../services/notificationService";
+import { getRealtimeEnrollmentRegistry } from "../../services/enrollmentService";
 
 function CreateAssignment() {
   const navigate = useNavigate();
@@ -27,6 +32,12 @@ function CreateAssignment() {
     dueDate: "",
     maxMarks: 100,
   });
+  const [attachmentFile, setAttachmentFile] = useState(null);
+  const [attachmentDataUrl, setAttachmentDataUrl] = useState("");
+  const [attachmentName, setAttachmentName] = useState("");
+  const [attachmentType, setAttachmentType] = useState("");
+  const [attachmentSize, setAttachmentSize] = useState("");
+  const [previewModalOpen, setPreviewModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [status, setStatus] = useState({ type: "", msg: "" });
 
@@ -34,7 +45,7 @@ function CreateAssignment() {
     loadInitialData();
   }, []);
 
-  const loadInitialData = async () => {
+  async function loadInitialData() {
     try {
       const [user, courseList] = await Promise.all([
         getCurrentUser(),
@@ -48,9 +59,58 @@ function CreateAssignment() {
     } catch (e) {
       console.error(e);
     }
+  }
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const lowerName = file.name.toLowerCase();
+    const isPdf = file.type === "application/pdf" || lowerName.endsWith(".pdf");
+    const isDoc =
+      file.type === "application/msword" ||
+      file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+      lowerName.endsWith(".doc") ||
+      lowerName.endsWith(".docx");
+
+    if (!isPdf && !isDoc) {
+      setStatus({
+        type: "error",
+        msg: "Please upload a valid PDF or Word Document (.pdf, .doc, .docx).",
+      });
+      return;
+    }
+
+    if (file.size > 30 * 1024 * 1024) {
+      setStatus({
+        type: "error",
+        msg: "File size exceeds 30MB limit. Please choose a smaller document.",
+      });
+      return;
+    }
+
+    setStatus({ type: "", msg: "" });
+    setAttachmentFile(file);
+    setAttachmentName(file.name);
+    setAttachmentType(isPdf ? "PDF" : "DOC");
+    setAttachmentSize((file.size / (1024 * 1024)).toFixed(2) + " MB");
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setAttachmentDataUrl(reader.result);
+    };
+    reader.readAsDataURL(file);
   };
 
-  const handleSubmit = async (e) => {
+  const removeAttachment = () => {
+    setAttachmentFile(null);
+    setAttachmentDataUrl("");
+    setAttachmentName("");
+    setAttachmentType("");
+    setAttachmentSize("");
+  };
+
+  async function handleSubmit(e) {
     e.preventDefault();
     if (!formData.courseId || !formData.title.trim()) {
       setStatus({ type: "error", msg: "Please select a course and provide an assignment title." });
@@ -66,18 +126,34 @@ function CreateAssignment() {
         description: formData.description.trim(),
         dueDate: formData.dueDate || new Date(Date.now() + 7 * 86400000).toISOString(),
         maxMarks: Number(formData.maxMarks) || 100,
+        attachmentUrl: attachmentDataUrl || null,
+        attachmentName: attachmentName || "",
+        attachmentType: attachmentType || "",
+        attachmentSize: attachmentSize || "",
       });
 
-      // ── Dispatch Real-Time Notification to Students ──
-      // Send notification event so learners in this course receive a real-time notification
+      // ── Dispatch Real-Time Notification to Enrolled Students ──
       const selectedCourse = courses.find((c) => String(c.id) === String(formData.courseId));
-      await sendNotification({
-        userId: 1, // Student broadcast / learner ID
-        subject: `New Assignment Published: ${formData.title}`,
-        message: `Instructor ${currentUser?.fullName || "Faculty"} published a new assignment in "${selectedCourse?.title || `Course #${formData.courseId}`}". Due date: ${formData.dueDate || "Next week"}. Submit your PDF report on the portal.`,
-      });
+      const courseTitle = selectedCourse?.title || `Course #${formData.courseId}`;
+      const enrollments = getRealtimeEnrollmentRegistry();
+      const enrolledLearners = enrollments.filter(
+        (e) => String(e.courseId) === String(formData.courseId)
+      );
 
-      setStatus({ type: "success", msg: "Assignment created successfully! Real-time notifications dispatched to learners." });
+      const targetUserIds = new Set(enrolledLearners.map((e) => Number(e.userId)).filter(Boolean));
+      // Always include student ID 1 for demonstration
+      targetUserIds.add(1);
+
+      const docNote = attachmentName ? ` (Attached Document: ${attachmentName})` : "";
+      for (const learnerId of targetUserIds) {
+        await sendNotification({
+          userId: Number(learnerId),
+          subject: `New Assignment: ${formData.title}`,
+          message: `Instructor ${currentUser?.fullName || "Faculty"} published a new assignment "${formData.title}" in "${courseTitle}". Due date: ${formData.dueDate || "Next week"}.${docNote} Download problem statement & submit your solutions from the Assignments page.`,
+        });
+      }
+
+      setStatus({ type: "success", msg: "Assignment created successfully! Real-time notifications dispatched to all enrolled learners." });
       setTimeout(() => {
         navigate("/instructor/my-assignments");
       }, 1500);
@@ -89,9 +165,18 @@ function CreateAssignment() {
     }
   };
 
+  const handleDownloadAttachment = (dataUrl, fileName) => {
+    if (!dataUrl) return;
+    const link = document.createElement("a");
+    link.href = dataUrl;
+    link.download = fileName || "assignment_document.pdf";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
-    <InstructorLayout>
-      <div className="p-8 max-w-4xl mx-auto space-y-6">
+    <div className="p-8 max-w-4xl mx-auto space-y-6">
         {/* ── Top Bar ── */}
         <div className="flex items-center justify-between pb-4 border-b border-slate-200">
           <button
@@ -109,7 +194,7 @@ function CreateAssignment() {
             Publish New Assignment
           </h1>
           <p className="text-xs text-slate-500 mt-1">
-            Create homework tasks, laboratory exercises, and term project rubrics for your enrolled students.
+            Create homework tasks, attach PDF/DOCX problem statements, and set due dates for enrolled learners.
           </p>
         </div>
 
@@ -195,12 +280,98 @@ function CreateAssignment() {
               Problem Statement & Instructions
             </label>
             <textarea
-              rows={5}
-              placeholder="Describe assignment objectives, submission guidelines (e.g. PDF report, GitHub code link), and evaluation rubric..."
+              rows={4}
+              placeholder="Describe assignment objectives, submission guidelines (e.g. PDF report, Word Document, GitHub link), and evaluation rubric..."
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               className="w-full bg-slate-50 border border-slate-200 rounded-lg p-4 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-600 focus:bg-white transition-colors resize-none leading-relaxed"
             />
+          </div>
+
+          {/* ── Attach Assignment Document (PDF / DOC / DOCX) ── */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                Attach Assignment Document (PDF or Word DOC)
+              </label>
+              <span className="text-[11px] text-slate-400 font-medium">Optional • Max 30MB</span>
+            </div>
+
+            {!attachmentFile ? (
+              <label className="border-2 border-dashed border-slate-200 hover:border-indigo-500 rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer bg-slate-50/60 hover:bg-indigo-50/20 transition-all group">
+                <input
+                  type="file"
+                  accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                />
+                <div className="h-11 w-11 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-2.5 group-hover:scale-105 transition-transform">
+                  <Upload size={20} />
+                </div>
+                <p className="text-xs font-bold text-slate-800">
+                  Click to choose or drag & drop Assignment File
+                </p>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  Supported formats: PDF Documents (.pdf) or Word Docs (.doc, .docx)
+                </p>
+              </label>
+            ) : (
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div
+                    className={`h-10 w-10 rounded-lg flex items-center justify-center ${
+                      attachmentType === "PDF"
+                        ? "bg-rose-100 text-rose-600"
+                        : "bg-blue-100 text-blue-600"
+                    }`}
+                  >
+                    <FileText size={20} />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs font-bold text-slate-900">{attachmentName}</p>
+                      <span
+                        className={`px-2 py-0.2 text-[10px] font-bold rounded ${
+                          attachmentType === "PDF"
+                            ? "bg-rose-50 text-rose-700 border border-rose-200"
+                            : "bg-blue-50 text-blue-700 border border-blue-200"
+                        }`}
+                      >
+                        {attachmentType} Document
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      {attachmentSize} • Ready to be downloaded by enrolled learners
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPreviewModalOpen(true)}
+                    className="px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 shadow-xs"
+                  >
+                    <Eye size={13} /> Preview
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDownloadAttachment(attachmentDataUrl, attachmentName)}
+                    className="px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 shadow-xs"
+                  >
+                    <Download size={13} /> Download
+                  </button>
+                  <button
+                    type="button"
+                    onClick={removeAttachment}
+                    className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                    title="Remove attachment"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
@@ -221,8 +392,74 @@ function CreateAssignment() {
             </button>
           </div>
         </form>
+
+        {/* ── Document Preview Modal ── */}
+        {previewModalOpen && attachmentDataUrl && (
+          <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl w-full max-w-4xl h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+              <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+                <div className="flex items-center gap-2">
+                  <div
+                    className={`h-7 w-7 rounded-md flex items-center justify-center ${
+                      attachmentType === "PDF"
+                        ? "bg-rose-100 text-rose-600"
+                        : "bg-blue-100 text-blue-600"
+                    }`}
+                  >
+                    <FileText size={16} />
+                  </div>
+                  <h3 className="text-sm font-bold text-slate-900">{attachmentName}</h3>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleDownloadAttachment(attachmentDataUrl, attachmentName)}
+                    className="px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 shadow-xs"
+                  >
+                    <Download size={13} /> Download
+                  </button>
+                  <button
+                    onClick={() => setPreviewModalOpen(false)}
+                    className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg transition-colors"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+              </div>
+              <div className="flex-1 bg-slate-100 p-2 flex items-center justify-center">
+                {attachmentType === "PDF" ? (
+                  <iframe
+                    src={attachmentDataUrl}
+                    title="PDF Assignment Preview"
+                    className="w-full h-full rounded-lg border border-slate-200 bg-white"
+                  />
+                ) : (
+                  <div className="bg-white p-8 rounded-xl border border-slate-200 shadow-sm max-w-lg text-center space-y-4">
+                    <div className="h-16 w-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mx-auto">
+                      <FileText size={32} />
+                    </div>
+                    <div>
+                      <h4 className="text-base font-bold text-slate-900">{attachmentName}</h4>
+                      <p className="text-xs text-slate-500 mt-1">
+                        Microsoft Word Document ({attachmentSize})
+                      </p>
+                    </div>
+                    <p className="text-xs text-slate-600 leading-relaxed">
+                      This Word Document (.doc / .docx) is attached to the assignment. Students will be able to download and open it in Microsoft Word / Docs.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadAttachment(attachmentDataUrl, attachmentName)}
+                      className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow-xs transition-colors"
+                    >
+                      <Download size={14} /> Download Word Document
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
-    </InstructorLayout>
   );
 }
 

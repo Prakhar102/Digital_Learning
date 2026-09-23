@@ -69,7 +69,7 @@ function WelcomeSection({ user }) {
           flex items-center gap-2
           "
         >
-          <span>🔥</span> {stats.currentStreak} Days
+          <Flame size={14} className="text-amber-500 inline mr-1" /> {stats.currentStreak} Days
         </h2>
         <p className="text-[11px] text-slate-400 mt-1">
           Longest: {stats.maxStreak} Days • {stats.totalActiveDays} Total Active Days

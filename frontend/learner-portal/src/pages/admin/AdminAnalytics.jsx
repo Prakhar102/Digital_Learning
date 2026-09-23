@@ -4,8 +4,6 @@ import {
   Server,
   Database,
   Cpu,
-  CheckCircle,
-  AlertTriangle,
   RefreshCw,
 } from "lucide-react";
 import AdminLayout from "../../components/admin/AdminLayout";

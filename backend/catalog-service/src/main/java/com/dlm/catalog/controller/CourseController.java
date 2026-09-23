@@ -80,4 +80,9 @@ public class CourseController {
         return courseService.getCoursesByCategory(categoryId);
     }
 
+    @org.springframework.web.bind.annotation.DeleteMapping("/{id}")
+    public void deleteCourse(@PathVariable Long id) {
+        courseService.deleteCourse(id);
+    }
+
 }

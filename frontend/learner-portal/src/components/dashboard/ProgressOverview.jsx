@@ -63,11 +63,11 @@ function ProgressOverview() {
 
         <div>
           <p className="mb-3">
-            ✅ Spring Boot Completed
+            Spring Boot Completed
           </p>
 
           <p className="mb-3">
-            ✅ Java Fundamentals Completed
+            Java Fundamentals Completed
           </p>
 
           <p>

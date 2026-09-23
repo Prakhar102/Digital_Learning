@@ -1,12 +1,7 @@
 import { useState, useEffect } from "react";
 import {
-  UserCircle,
-  Mail,
-  Shield,
-  Key,
   CheckCircle,
   Save,
-  BookOpen,
 } from "lucide-react";
 import DashboardLayout from "../../components/dashboard/DashboardLayout";
 import LeetCodeStreakHeatmap from "../../components/profile/LeetCodeStreakHeatmap";
@@ -22,7 +17,7 @@ function LearnerProfile() {
     loadUser();
   }, []);
 
-  const loadUser = async () => {
+  async function loadUser() {
     try {
       const u = await getCurrentUser();
       setUser(u);

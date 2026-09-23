@@ -10,20 +10,12 @@ import {
   Briefcase,
   Terminal,
   CheckCircle2,
-  AlertCircle,
-  Play,
   RotateCcw,
-  ArrowRight,
   Zap,
-  TrendingUp,
   Award,
 } from "lucide-react";
 import DashboardLayout from "../../components/dashboard/DashboardLayout";
-import {
-  AGENT_PERSONAS,
-  TOOL_DEFINITIONS,
-  runAgentExecution,
-} from "../../services/agentService";
+import { AGENT_PERSONAS, runAgentExecution } from "../../services/agentService";
 
 function AgentStudio() {
   const navigate = useNavigate();
@@ -338,7 +330,7 @@ function AgentStudio() {
 
                         {quizSubmitted && (
                           <p className="text-[11px] text-slate-500 pt-2 border-t border-slate-200">
-                            💡 <span className="font-bold">Explanation:</span> {q.explanation}
+                            <span className="font-bold text-indigo-600">Key Concept:</span> {q.explanation}
                           </p>
                         )}
                       </div>
@@ -427,7 +419,7 @@ function AgentStudio() {
                             </span>
                           </div>
                           <p className="text-xs text-slate-600 mt-1">
-                            🎯 Recommendation: {gap.recommendation}
+                            Recommended Track: {gap.recommendation}
                           </p>
                         </div>
                         <button

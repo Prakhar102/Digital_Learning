@@ -4,16 +4,7 @@ import {
   Bot,
   Send,
   Sparkles,
-  BookOpen,
-  FileText,
-  Award,
-  Brain,
-  Layers,
-  ChevronRight,
   CheckCircle2,
-  ExternalLink,
-  RotateCcw,
-  Search,
 } from "lucide-react";
 import DashboardLayout from "../../components/dashboard/DashboardLayout";
 import { askRAGMentor, getAllKnowledgeDomains } from "../../services/ragService";
@@ -37,7 +28,7 @@ function AIMentor() {
     loadContext();
   }, []);
 
-  const loadContext = async () => {
+  async function loadContext() {
     try {
       const [u, cList] = await Promise.allSettled([
         getCurrentUser(),
@@ -154,11 +145,11 @@ function AIMentor() {
               onChange={(e) => setSelectedDomain(e.target.value)}
               className="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-800 focus:outline-none focus:border-blue-600 shadow-xs"
             >
-              <option value="all">🌐 All 4 Knowledge Domains</option>
-              <option value="course-materials">📚 Course Materials Only</option>
-              <option value="learning-references">📖 Learning References Only</option>
-              <option value="certification-guides">🎓 Certification Guides Only</option>
-              <option value="skill-frameworks">🧠 Skill Frameworks Only</option>
+              <option value="all">All 4 Knowledge Domains</option>
+              <option value="course-materials">Course Materials Only</option>
+              <option value="learning-references">Learning References Only</option>
+              <option value="certification-guides">Certification Guides Only</option>
+              <option value="skill-frameworks">Skill Frameworks Only</option>
             </select>
 
             <select

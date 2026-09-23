@@ -10,17 +10,20 @@ public class LessonRequest {
     @NotBlank
     private String title;
 
-    @NotBlank
     private String contentType;
 
     private String contentRef;
 
-    @NotNull
+    private String videoUrl;
+
+    private String content;
+
     private Integer durationInMinutes;
 
-    @NotNull
     private Integer sequenceNumber;
+
+    private Integer orderIndex;
 
     @NotNull
     private Long moduleId;
-}
+}

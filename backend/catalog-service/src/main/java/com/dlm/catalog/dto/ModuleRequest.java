@@ -10,9 +10,10 @@ public class ModuleRequest {
     @NotBlank
     private String title;
 
-    @NotNull
     private Integer sequenceNumber;
+
+    private Integer orderIndex;
 
     @NotNull
     private Long courseId;
-}
+}

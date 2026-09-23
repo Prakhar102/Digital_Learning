@@ -1,11 +1,6 @@
 import { useState, useEffect } from "react";
 import {
-  BookOpen,
   Search,
-  CheckCircle,
-  Eye,
-  Filter,
-  Layers,
 } from "lucide-react";
 import AdminLayout from "../../components/admin/AdminLayout";
 import { getAllCourses } from "../../services/courseService";
@@ -19,7 +14,7 @@ function AdminCourses() {
     loadCourses();
   }, []);
 
-  const loadCourses = async () => {
+  async function loadCourses() {
     try {
       setLoading(true);
       const list = await getAllCourses();

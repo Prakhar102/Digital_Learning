@@ -37,11 +37,16 @@ public class CourseServiceImpl
     public CourseResponse createCourse(
             CourseRequest request) {
 
-        Category category =
-                categoryRepository.findById(
-                        request.getCategoryId())
-                        .orElseThrow(() ->
-                                new ResourceNotFoundException("Category not found"));
+        Category category = (request.getCategoryId() != null)
+                ? categoryRepository.findById(request.getCategoryId())
+                        .orElseGet(() -> categoryRepository.findAll().stream().findFirst().orElseGet(() ->
+                                categoryRepository.save(Category.builder().name("General Engineering").description("Software Principles").build())
+                        ))
+                : categoryRepository.findAll().stream().findFirst().orElseGet(() ->
+                        categoryRepository.save(Category.builder().name("General Engineering").description("Software Principles").build())
+                );
+
+        CourseStatus courseStatus = request.getStatus() != null ? request.getStatus() : CourseStatus.PUBLISHED;
 
         Course course =
                 Course.builder()
@@ -49,7 +54,7 @@ public class CourseServiceImpl
                         .description(
                                 request.getDescription())
                         .level(request.getLevel())
-                        .status(CourseStatus.DRAFT)
+                        .status(courseStatus)
                         .ownerUserId(
                                 request.getOwnerUserId())
                         .category(category)
@@ -142,14 +147,19 @@ public class CourseServiceImpl
                                 .title(module.getTitle())
                                 .sequenceNumber(module.getSequenceNumber())
                                 .lessons(lessonRepository.findByModuleId(module.getId())
-                                .stream()
-                                .map(lesson -> LessonSummaryResponse.builder()
-                                                                .id(lesson.getId())
-                                                                .title(lesson.getTitle())
-                                                                .durationInMinutes(lesson.getDurationInMinutes())
-                                                                .build())
-                                                .toList()
-                                )
+                                        .stream()
+                                        .map(lesson -> LessonSummaryResponse.builder()
+                                                .id(lesson.getId())
+                                                .title(lesson.getTitle())
+                                                .contentType(lesson.getContentType())
+                                                .contentRef(lesson.getContentRef())
+                                                .videoUrl(lesson.getVideoUrl())
+                                                .content(lesson.getContent())
+                                                .durationInMinutes(lesson.getDurationInMinutes())
+                                                .sequenceNumber(lesson.getSequenceNumber())
+                                                .moduleId(module.getId())
+                                                .build())
+                                        .toList())
                                 .build())
                         .toList();
 
@@ -185,5 +195,19 @@ public class CourseServiceImpl
                 .stream()
                 .map(this::mapToResponse)
                 .toList();
+    }
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional
+    public void deleteCourse(Long id) {
+        if (courseRepository.existsById(id)) {
+            List<com.dlm.catalog.entity.Module> modules = moduleRepository.findByCourseId(id);
+            for (com.dlm.catalog.entity.Module m : modules) {
+                List<com.dlm.catalog.entity.Lesson> lessons = lessonRepository.findByModuleId(m.getId());
+                lessonRepository.deleteAll(lessons);
+            }
+            moduleRepository.deleteAll(modules);
+            courseRepository.deleteById(id);
+        }
     }
 }

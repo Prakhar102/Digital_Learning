@@ -1,5 +1,6 @@
 package com.dlm.catalog.entity;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -32,6 +33,11 @@ public class Lesson {
 
     private String contentRef;
 
+    private String videoUrl;
+
+    @Column(columnDefinition = "TEXT")
+    private String content;
+
     private Integer durationInMinutes;
 
     private Integer sequenceNumber;
@@ -39,4 +45,4 @@ public class Lesson {
     @ManyToOne
     @JoinColumn(name = "module_id")
     private Module module;
-}
+}

@@ -1,14 +1,8 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import {
   Flame,
   Zap,
   Calendar,
-  Trophy,
-  CheckCircle2,
-  TrendingUp,
-  Award,
-  Sparkles,
-  Info,
 } from "lucide-react";
 import { calculateLearnerStreak } from "../../services/streakService";
 

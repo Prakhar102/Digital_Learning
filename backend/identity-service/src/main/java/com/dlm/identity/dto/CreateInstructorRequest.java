@@ -10,7 +10,6 @@ public class CreateInstructorRequest {
     @NotBlank
     private String fullName;
 
-    @NotBlank
     private String phoneNumber;
 
     @Email
@@ -18,4 +17,4 @@ public class CreateInstructorRequest {
 
     @NotBlank
     private String password;
-}
+}

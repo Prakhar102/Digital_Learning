@@ -8,7 +8,6 @@ import {
 import { getAllCourses } from "../../services/courseService";
 import { getCurrentUser } from "../../services/userService";
 import {
-  Activity,
   Cpu,
   Sparkles,
   Play,
@@ -16,14 +15,8 @@ import {
   CheckCircle2,
   GitBranch,
   Eye,
-  Layers,
-  Clock,
-  Coins,
-  Bot,
   Terminal,
-  ShieldCheck,
   ChevronRight,
-  TrendingUp,
   Workflow,
   ArrowRight,
 } from "lucide-react";

@@ -31,7 +31,7 @@ function LoginPage() {
     });
   };
 
-  const handleSubmit = async (e) => {
+  async function handleSubmit(e) {
   e.preventDefault();
 
   try {

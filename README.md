@@ -12,20 +12,170 @@
 
 ---
 
-## 📑 Table of Contents
-1. [Platform Overview & Rubric Phases](#-platform-overview--rubric-phases)
-2. [Prerequisites](#-prerequisites)
-3. [Folder-by-Folder Dependency Installation Guide](#-folder-by-folder-dependency-installation-guide)
-4. [How to Run the Entire System](#-how-to-run-the-entire-system)
-5. [Microservices Port Mapping & Topology](#-microservices-port-mapping--topology)
-6. [Key Enterprise Features](#-key-enterprise-features)
-7. [Default Roles & Credentials](#-default-roles--credentials)
+## ⚡ COPY-PASTE READY COMMANDS CHEATSHEET
+
+### 🎨 1. Frontend & Tailwind CSS Dependencies (Run in Terminal)
+
+#### 📦 A. Quick Install All Frontend Dependencies:
+```bash
+# Navigate to the frontend portal directory
+cd frontend/learner-portal
+
+# Install all required React, TailwindCSS, Lucide icons, and animation libraries
+npm install
+```
+
+#### 🎨 B. Install Tailwind CSS v4 & UI Packages Specifically:
+If you are setting up or adding Tailwind CSS and supporting UI libraries individually, run:
+
+```bash
+# 1. Install Tailwind CSS v4 Core and Vite Plugin
+npm install tailwindcss @tailwindcss/vite
+
+# 2. Install Lucide Icons, Framer Motion & UI Utilities
+npm install lucide-react framer-motion canvas-confetti date-fns react-router-dom axios
+```
+
+#### ⚙️ C. Tailwind CSS v4 Configuration Reference:
+- **Vite Plugin** in `frontend/learner-portal/vite.config.js`:
+  ```javascript
+  import { defineConfig } from "vite";
+  import react from "@vitejs/plugin-react";
+  import tailwindcss from "@tailwindcss/vite";
+
+  export default defineConfig({
+    plugins: [
+      react(),
+      tailwindcss(),
+    ],
+  });
+  ```
+
+- **Global CSS Import** in `frontend/learner-portal/src/index.css`:
+  ```css
+  @import "tailwindcss";
+  ```
 
 ---
 
-## 🏛️ Platform Overview & Rubric Phases
+### ☕ 2. Set Up Java 17 Environment (Run before compiling backend)
 
-The **Digital Learning Mentor (DLM)** platform is built from the ground up across all 5 evaluation rubric tiers:
+#### 🪟 Windows (PowerShell):
+```powershell
+$env:JAVA_HOME = "C:\Program Files\Java\jdk-17"
+$env:Path = "$env:JAVA_HOME\bin;$env:Path"
+java -version
+```
+
+#### 🪟 Windows (Command Prompt - CMD):
+```cmd
+set JAVA_HOME=C:\Program Files\Java\jdk-17
+set PATH=%JAVA_HOME%\bin;%PATH%
+java -version
+```
+
+#### 🍎 macOS / 🐧 Linux (Bash/Zsh):
+```bash
+export JAVA_HOME=/Library/Java/JavaVirtualMachines/jdk-17.jdk/Contents/Home # or /usr/lib/jvm/java-17-openjdk
+export PATH=$JAVA_HOME/bin:$PATH
+java -version
+```
+
+---
+
+### 🛠️ 3. Compile All 10 Backend Microservices (Copy & Paste)
+
+#### 🪟 Windows (PowerShell):
+```powershell
+$services = @("config-server", "discovery-server", "api-gateway", "identity-service", "catalog-service", "progress-service", "assessment-service", "certification-service", "assignment-service", "notification-service")
+
+foreach ($s in $services) {
+    Write-Host "`n📦 Compiling $s..." -ForegroundColor Cyan
+    Push-Location "backend\$s"
+    .\mvnw.cmd clean compile
+    Pop-Location
+}
+```
+
+#### 🍎 macOS / 🐧 Linux (Bash):
+```bash
+services=("config-server" "discovery-server" "api-gateway" "identity-service" "catalog-service" "progress-service" "assessment-service" "certification-service" "assignment-service" "notification-service")
+
+for s in "${services[@]}"; do
+    echo "📦 Compiling $s..."
+    cd "backend/$s" && ./mvnw clean compile && cd ../..
+done
+```
+
+---
+
+### 🐬 4. MySQL Database Setup (Optional — Auto-Created by Default)
+If you want to manually create all databases, run this in your MySQL client (`root` / `Prakhar@321`):
+```sql
+CREATE DATABASE IF NOT EXISTS identity_db;
+CREATE DATABASE IF NOT EXISTS catalog_db;
+CREATE DATABASE IF NOT EXISTS progress_db;
+CREATE DATABASE IF NOT EXISTS assessment_db;
+CREATE DATABASE IF NOT EXISTS certification_db;
+CREATE DATABASE IF NOT EXISTS dlm_assignment_db;
+CREATE DATABASE IF NOT EXISTS notification_db;
+```
+
+---
+
+### ▶️ 5. Start Everything (Run Commands)
+
+#### 🅰️ Start All 10 Backend Microservices (Single Command):
+```powershell
+# Run from repository root in PowerShell:
+powershell -ExecutionPolicy Bypass -File backend\start-all-microservices.ps1
+```
+
+#### 🅱️ Start Frontend Portal:
+```bash
+# Run in a separate terminal:
+cd frontend/learner-portal
+npm run dev
+```
+👉 Open **`http://localhost:5173/`** in your browser!
+
+---
+
+### 📂 6. Run Individual Backend Microservices (One-by-One Commands)
+
+| Microservice | Port | Windows (CMD) Run Command | Linux/Mac Run Command |
+|---|---|---|---|
+| **Config Server** | `8888` | `cd backend\config-server && .\mvnw.cmd spring-boot:run` | `cd backend/config-server && ./mvnw spring-boot:run` |
+| **Discovery Server** | `8761` | `cd backend\discovery-server && .\mvnw.cmd spring-boot:run` | `cd backend/discovery-server && ./mvnw spring-boot:run` |
+| **API Gateway** | `8080` | `cd backend\api-gateway && .\mvnw.cmd spring-boot:run` | `cd backend/api-gateway && ./mvnw spring-boot:run` |
+| **Identity Service** | `8081` | `cd backend\identity-service && .\mvnw.cmd spring-boot:run` | `cd backend/identity-service && ./mvnw spring-boot:run` |
+| **Catalog Service** | `8082` | `cd backend\catalog-service && .\mvnw.cmd spring-boot:run` | `cd backend/catalog-service && ./mvnw spring-boot:run` |
+| **Progress Service** | `8083` | `cd backend\progress-service && .\mvnw.cmd spring-boot:run` | `cd backend/progress-service && ./mvnw spring-boot:run` |
+| **Assessment Service** | `8084` | `cd backend\assessment-service && .\mvnw.cmd spring-boot:run` | `cd backend/assessment-service && ./mvnw spring-boot:run` |
+| **Certification Service**| `8085` | `cd backend\certification-service && .\mvnw.cmd spring-boot:run`| `cd backend/certification-service && ./mvnw spring-boot:run`|
+| **Assignment Service** | `8086` | `cd backend\assignment-service && .\mvnw.cmd spring-boot:run` | `cd backend/assignment-service && ./mvnw spring-boot:run` |
+| **Notification Service** | `8087` | `cd backend\notification-service && .\mvnw.cmd spring-boot:run`| `cd backend/notification-service && ./mvnw spring-boot:run`|
+
+---
+
+### 🚀 7. Push to GitHub (Copy & Paste Commands)
+```bash
+# Add all files
+git add -A
+
+# Commit changes
+git commit -m "feat: complete Phase 1-5 enterprise learning platform with real-time streak, direct enrollment, RAG, MCP servers, and copy-paste ready documentation"
+
+# Ensure remote is set to your repository
+git remote set-url origin https://github.com/Prakhar102/Digital_Learning.git
+
+# Push to main branch
+git push -u origin main
+```
+
+---
+
+## 🏛️ Platform Architecture & Topology
 
 ```
                                   ┌────────────────────────┐
@@ -58,142 +208,6 @@ The **Digital Learning Mentor (DLM)** platform is built from the ground up acros
   └─────────────┘   └─────────────┘
 ```
 
-- **Phase 1: Full-Stack Enterprise Platform**: 10 Spring Boot microservices, Eureka discovery, dynamic real-time catalog, instant multi-party notification system, and student PDF homework grading console.
-- **Phase 2: Multi-Domain RAG Assistant & Anti-Skip Player**: 4-domain semantic retrieval knowledge hub, strict non-skip video lecture tracking, and AI-generated spaced-repetition flashcards.
-- **Phase 3: Autonomous Agent Studio & Socratic Arena**: 4 context-aware autonomous agents with tool-calling sandbox and adversarial Socratic debate engine.
-- **Phase 4: Model Context Protocol (MCP) Integration**: 4 JSON-RPC 2.0 servers (`LMS`, `Content`, `Cert`, `Collab`) with interactive protocol inspector.
-- **Phase 5: Multi-Agent Collaboration & Observability**: 5-agent supervisor orchestrator with trace waterfall and interactive learning path decision tree.
-
----
-
-## ⚙️ Prerequisites
-
-Ensure you have the following installed on your machine:
-
-1. **Java JDK 17** (Required for Spring Boot microservices):
-   - Verified path: `C:\Program Files\Java\jdk-17`
-2. **Node.js (v18.x or v20.x+) & npm** (Required for React frontend)
-3. **MySQL Server 8.0+** (Default port `3306`, user `root`)
-4. **PowerShell / Terminal** (Windows / macOS / Linux)
-5. **Git**
-
----
-
-## 📦 Folder-by-Folder Dependency Installation Guide
-
-### 1️⃣ Frontend (`frontend/learner-portal/`)
-The frontend is a high-performance React 19 + Vite single-page application.
-
-```bash
-# Navigate to the frontend directory
-cd frontend/learner-portal
-
-# Install all npm dependencies
-npm install
-```
-
-#### Dependencies installed in `frontend/learner-portal/package.json`:
-- `react` & `react-dom` (v19)
-- `react-router-dom` (v7) — Enterprise client-side routing
-- `lucide-react` — Modern vector icon library
-- `tailwindcss` & `@tailwindcss/vite` (v4) — Design system styling
-- `axios` — HTTP client with interceptors
-- `framer-motion` — Micro-animations & UI transitions
-- `canvas-confetti` — Milestone & celebration rewards
-- `jspdf` — Client-side verifiable certificate rendering
-
----
-
-### 2️⃣ Backend Microservices (`backend/`)
-The backend consists of 10 microservices equipped with Maven wrappers (`mvnw.cmd` on Windows / `mvnw` on Linux).
-
-You do **not** need a separate global Maven installation; each service uses its included Maven wrapper.
-
-#### Set your Java 17 environment variable:
-```powershell
-# In PowerShell:
-$env:JAVA_HOME = "C:\Program Files\Java\jdk-17"
-$env:Path = "$env:JAVA_HOME\bin;$env:Path"
-```
-
-```bash
-# In Bash (macOS/Linux):
-export JAVA_HOME=/path/to/jdk-17
-export PATH=$JAVA_HOME/bin:$PATH
-```
-
-#### Compiling each backend service (Optional test):
-```bash
-# Example: Compile Config Server
-cd backend/config-server
-./mvnw clean compile
-
-# Example: Compile Eureka Discovery Server
-cd backend/discovery-server
-./mvnw clean compile
-```
-
----
-
-### 3️⃣ Database Configuration (`MySQL`)
-All database schemas are configured with `createDatabaseIfNotExist=true` in `backend/config-repo/*.yml`. Ensure your MySQL server is running on `localhost:3306` with credentials matching your local environment (default configured: `root` / `Prakhar@321`).
-
----
-
-## 🚀 How to Run the Entire System
-
-### Step 1: Start All 10 Backend Microservices (Automated)
-
-Run the included automated PowerShell launcher which boots all services in their optimal dependency order:
-
-```powershell
-# From the project root:
-powershell -ExecutionPolicy Bypass -File backend\start-all-microservices.ps1
-```
-
-*This script initializes:*
-1. **Config Server** (Port `8888`) &mdash; *waits 12 seconds*
-2. **Discovery Server (Eureka)** (Port `8761`) &mdash; *waits 12 seconds*
-3. **API Gateway** (Port `8080`)
-4. **Identity Service** (Port `8081`)
-5. **Catalog Service** (Port `8082`)
-6. **Progress Service** (Port `8083`)
-7. **Assessment Service** (Port `8084`)
-8. **Certification Service** (Port `8085`)
-9. **Assignment Service** (Port `8086`)
-10. **Notification Service** (Port `8087`)
-
----
-
-### Step 2: Start the Frontend Portal
-
-Open a new terminal window:
-
-```bash
-cd frontend/learner-portal
-npm run dev
-```
-
-The portal will be live at: **`http://localhost:5173/`**
-
----
-
-## 🌐 Microservices Port Mapping & Topology
-
-| Service Name | Port | Health / Registry Endpoint | Description |
-|---|---|---|---|
-| **Frontend Portal** | `5173` | `http://localhost:5173` | React 19 UI with RAG, MCP, Observability & Streak |
-| **API Gateway** | `8080` | `http://localhost:8080/actuator/health` | Central routing, rate limiting, and CORS security |
-| **Eureka Registry** | `8761` | `http://localhost:8761` | Service discovery & live node registration dashboard |
-| **Config Server** | `8888` | `http://localhost:8888/actuator/health` | Centralized Spring Cloud configuration repository |
-| **Identity Service** | `8081` | `http://localhost:8080/api/auth` | JWT Auth, RBAC (Learner, Instructor, Admin) |
-| **Catalog Service** | `8082` | `http://localhost:8080/api/courses` | Curricula, modules, lessons, and tech categories |
-| **Progress Service** | `8083` | `http://localhost:8080/api/progress` | Lecture progress tracking, video time clamp |
-| **Assessment Service**| `8084` | `http://localhost:8080/api/assessments` | Graded quizzes, test submissions & rubric score |
-| **Certification** | `8085` | `http://localhost:8080/api/certificates` | Verifiable credentials & SHA-256 certificate hashes |
-| **Assignment** | `8086` | `http://localhost:8080/api/assignments` | PDF homework submissions & instructor grading |
-| **Notification** | `8087` | `http://localhost:8080/api/notifications` | Real-time multi-party event alert dispatcher |
-
 ---
 
 ## 🌟 Key Enterprise Features
@@ -220,8 +234,6 @@ The portal will be live at: **`http://localhost:5173/`**
 ---
 
 ## 🔑 Default Roles & Credentials
-
-You can log in or register under any of the 3 supported platform roles:
 
 | Role | Default Email | Portal Access |
 |---|---|---|

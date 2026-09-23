@@ -3,14 +3,9 @@ import { useNavigate } from "react-router-dom";
 import {
   GraduationCap,
   Sparkles,
-  Send,
   CheckCircle2,
-  AlertTriangle,
-  ArrowRight,
-  RotateCcw,
   Zap,
   Award,
-  BookOpen,
 } from "lucide-react";
 import DashboardLayout from "../../components/dashboard/DashboardLayout";
 
@@ -120,10 +115,10 @@ function SocraticDebate() {
           </div>
 
           <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2 text-xs text-slate-700">
-            <p className="font-semibold text-slate-900">📋 System Failure Context:</p>
+            <p className="font-semibold text-slate-900">System Failure Context:</p>
             <p className="leading-relaxed">{currentScenario.context}</p>
             <p className="font-bold text-blue-700 pt-2 border-t border-slate-200">
-              🎯 Socratic Challenge: {currentScenario.challenge}
+              Socratic Challenge: {currentScenario.challenge}
             </p>
           </div>
 

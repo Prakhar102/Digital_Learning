@@ -36,17 +36,20 @@ import AdminAnalytics from "../pages/admin/AdminAnalytics";
 import AdminSettings from "../pages/admin/AdminSettings";
 
 // Instructor pages
+import InstructorLayout from "../components/instructor/InstructorLayout";
 import InstructorDashboard from "../pages/instructor/InstructorDashboard";
 import CreateCourse from "../pages/instructor/CreateCourse";
 import MyCourses from "../pages/instructor/MyCourses";
 import ManageCourseContent from "../pages/instructor/ManageCourseContent";
 import CreateAssessment from "../pages/instructor/CreateAssessment";
+import InstructorAssessments from "../pages/instructor/InstructorAssessments";
 import CreateAssignments from "../pages/instructor/CreateAssignment";
 import MyAssignments from "../pages/instructor/MyAssignments";
 import InstructorSubmissions from "../pages/instructor/InstructorSubmissions";
 import InstructorAnalytics from "../pages/instructor/InstructorAnalytics";
 
 import ProtectedRoute from "./ProtectedRoute";
+import DashboardLayout from "../components/dashboard/DashboardLayout";
 
 function AppRoutes() {
   return (
@@ -56,183 +59,41 @@ function AppRoutes() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
 
-      {/* ── Learner Portal Routes ── */}
+      {/* ── Learner Portal Routes (Persistent Sidebar & Seamless Layout) ── */}
       <Route
-        path="/dashboard"
         element={
           <ProtectedRoute>
-            <Dashboard />
+            <DashboardLayout />
           </ProtectedRoute>
         }
-      />
-      <Route
-        path="/courses"
-        element={
-          <ProtectedRoute>
-            <CourseCatalog />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/courses/:courseId"
-        element={
-          <ProtectedRoute>
-            <CourseDetail />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/learn/:courseId"
-        element={
-          <ProtectedRoute>
-            <CourseLearning />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/my-learning"
-        element={
-          <ProtectedRoute>
-            <MyLearning />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/my-assessments"
-        element={
-          <ProtectedRoute>
-            <MyAssessments />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/assessments/:assessmentId/take"
-        element={
-          <ProtectedRoute>
-            <TakeAssessment />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/assessments/:assessmentId/result"
-        element={
-          <ProtectedRoute>
-            <AssessmentResult />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/leaderboard/:assessmentId"
-        element={
-          <ProtectedRoute>
-            <Leaderboard />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/assignments/:assignmentId/submit"
-        element={
-          <ProtectedRoute>
-            <SubmitAssignment />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/my-submissions"
-        element={
-          <ProtectedRoute>
-            <MySubmissions />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/ai-mentor"
-        element={
-          <ProtectedRoute>
-            <AIMentor />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/agent-studio"
-        element={
-          <ProtectedRoute>
-            <AgentStudio />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/socratic-debate"
-        element={
-          <ProtectedRoute>
-            <SocraticDebate />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/knowledge-hub"
-        element={
-          <ProtectedRoute>
-            <KnowledgeHub />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/flashcards"
-        element={
-          <ProtectedRoute>
-            <Flashcards />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/mcp-explorer"
-        element={
-          <ProtectedRoute>
-            <MCPExplorer />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/agent-observability"
-        element={
-          <ProtectedRoute>
-            <AgentObservability />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/certificates"
-        element={
-          <ProtectedRoute>
-            <MyCertificates />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/certificates/:certificateId"
-        element={
-          <ProtectedRoute>
-            <CertificateView />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/notifications"
-        element={
-          <ProtectedRoute>
-            <Notifications />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/profile"
-        element={
-          <ProtectedRoute>
-            <LearnerProfile />
-          </ProtectedRoute>
-        }
-      />
+      >
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/courses" element={<CourseCatalog />} />
+        <Route path="/courses/:courseId" element={<CourseDetail />} />
+        <Route path="/learn/:courseId" element={<CourseLearning />} />
+        <Route path="/my-learning" element={<MyLearning />} />
+        <Route path="/my-assessments" element={<MyAssessments />} />
+        <Route path="/leaderboard" element={<Leaderboard />} />
+        <Route path="/leaderboard/:assessmentId" element={<Leaderboard />} />
+        <Route path="/take-assessment/:assessmentId" element={<TakeAssessment />} />
+        <Route path="/assessments/:assessmentId/take" element={<TakeAssessment />} />
+        <Route path="/assessments/:assessmentId/result" element={<AssessmentResult />} />
+        <Route path="/assessments/:assessmentId/leaderboard" element={<Leaderboard />} />
+        <Route path="/assignments/:assignmentId/submit" element={<SubmitAssignment />} />
+        <Route path="/assignments" element={<MySubmissions />} />
+        <Route path="/my-submissions" element={<MySubmissions />} />
+        <Route path="/ai-mentor" element={<AIMentor />} />
+        <Route path="/agent-studio" element={<AgentStudio />} />
+        <Route path="/socratic-debate" element={<SocraticDebate />} />
+        <Route path="/knowledge-hub" element={<KnowledgeHub />} />
+        <Route path="/flashcards" element={<Flashcards />} />
+        <Route path="/mcp-explorer" element={<MCPExplorer />} />
+        <Route path="/agent-observability" element={<AgentObservability />} />
+        <Route path="/certificates" element={<MyCertificates />} />
+        <Route path="/certificates/:certificateId" element={<CertificateView />} />
+        <Route path="/notifications" element={<Notifications />} />
+        <Route path="/profile" element={<LearnerProfile />} />
+      </Route>
 
       {/* ── Admin Portal Routes ── */}
       <Route
@@ -289,74 +150,24 @@ function AppRoutes() {
         path="/instructor"
         element={
           <ProtectedRoute>
-            <InstructorDashboard />
+            <InstructorLayout />
           </ProtectedRoute>
         }
-      />
-      <Route
-        path="/instructor/create-course"
-        element={
-          <ProtectedRoute>
-            <CreateCourse />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/instructor/my-courses"
-        element={
-          <ProtectedRoute>
-            <MyCourses />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/instructor/courses/:courseId/content"
-        element={
-          <ProtectedRoute>
-            <ManageCourseContent />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/instructor/courses/:courseId/assessment"
-        element={
-          <ProtectedRoute>
-            <CreateAssessment />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/instructor/assignments"
-        element={
-          <ProtectedRoute>
-            <CreateAssignments />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/instructor/my-assignments"
-        element={
-          <ProtectedRoute>
-            <MyAssignments />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/instructor/submissions"
-        element={
-          <ProtectedRoute>
-            <InstructorSubmissions />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/instructor/analytics"
-        element={
-          <ProtectedRoute>
-            <InstructorAnalytics />
-          </ProtectedRoute>
-        }
-      />
+      >
+        <Route index element={<InstructorDashboard />} />
+        <Route path="create-course" element={<CreateCourse />} />
+        <Route path="my-courses" element={<MyCourses />} />
+        <Route path="courses/:courseId/content" element={<ManageCourseContent />} />
+        <Route path="course/:courseId/manage" element={<ManageCourseContent />} />
+        <Route path="courses/:courseId/assessment" element={<CreateAssessment />} />
+        <Route path="create-assessment" element={<CreateAssessment />} />
+        <Route path="assessments" element={<InstructorAssessments />} />
+        <Route path="my-assessments" element={<InstructorAssessments />} />
+        <Route path="assignments" element={<CreateAssignments />} />
+        <Route path="my-assignments" element={<MyAssignments />} />
+        <Route path="submissions" element={<InstructorSubmissions />} />
+        <Route path="analytics" element={<InstructorAnalytics />} />
+      </Route>
 
       {/* ── Fallback ── */}
       <Route path="*" element={<Navigate to="/" />} />

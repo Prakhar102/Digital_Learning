@@ -1,5 +1,6 @@
 package com.dlm.catalog.dto;
 
+import java.util.List;
 import lombok.Builder;
 import lombok.Data;
 
@@ -14,4 +15,6 @@ public class ModuleResponse {
     private Integer sequenceNumber;
 
     private Long courseId;
+
+    private List<LessonResponse> lessons;
 }

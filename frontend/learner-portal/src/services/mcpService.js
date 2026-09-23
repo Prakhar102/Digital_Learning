@@ -9,9 +9,8 @@
  * 4. Collaboration MCP Server (`mcp://dlm-collab-service`)
  */
 
-import { getAllCourses, getCourseById } from "./courseService.js";
+import { getAllCourses } from "./courseService.js";
 import { getUserEnrollments } from "./enrollmentService.js";
-import { getUserCertificates } from "./certificateService.js";
 import { getCurrentUser } from "./userService.js";
 import { getAllAssessments } from "./assessmentService.js";
 

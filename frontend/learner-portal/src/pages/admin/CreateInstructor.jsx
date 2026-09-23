@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  UserPlus,
   ArrowLeft,
   CheckCircle,
   AlertCircle,
   Mail,
   Lock,
   User,
+  Phone,
   Send,
 } from "lucide-react";
 import AdminLayout from "../../components/admin/AdminLayout";
@@ -18,29 +18,42 @@ function CreateInstructor() {
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
+    phoneNumber: "",
     password: "",
   });
   const [submitting, setSubmitting] = useState(false);
   const [status, setStatus] = useState({ type: "", msg: "" });
 
-  const handleSubmit = async (e) => {
+  async function handleSubmit(e) {
     e.preventDefault();
-    if (!formData.fullName || !formData.email || !formData.password) return;
+    if (!formData.fullName || !formData.email || !formData.password) {
+      setStatus({ type: "error", msg: "Please fill in all required fields." });
+      return;
+    }
 
     try {
       setSubmitting(true);
-      await createInstructor(formData);
-      setStatus({ type: "success", msg: "Faculty account provisioned successfully!" });
+      setStatus({ type: "", msg: "" });
+      const res = await createInstructor(formData);
+      setStatus({
+        type: "success",
+        msg: res?.message || "Faculty account provisioned successfully!",
+      });
       setTimeout(() => {
         navigate("/admin/instructors");
-      }, 1500);
+      }, 1200);
     } catch (err) {
-      console.error(err);
-      setStatus({ type: "error", msg: "Failed to create instructor account." });
+      console.error("Create instructor error:", err);
+      const errorMsg =
+        err?.response?.data?.message ||
+        (typeof err?.response?.data === "string" ? err?.response?.data : null) ||
+        err?.message ||
+        "Failed to create instructor account.";
+      setStatus({ type: "error", msg: errorMsg });
     } finally {
       setSubmitting(false);
     }
-  };
+  }
 
   return (
     <AdminLayout>
@@ -48,7 +61,7 @@ function CreateInstructor() {
         {/* ── Top Bar ── */}
         <button
           onClick={() => navigate("/admin/instructors")}
-          className="inline-flex items-center gap-2 text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors"
+          className="inline-flex items-center gap-2 text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
         >
           <ArrowLeft size={14} /> Back to Faculty Directory
         </button>
@@ -59,7 +72,7 @@ function CreateInstructor() {
             Provision New Faculty Account
           </h1>
           <p className="text-xs text-slate-500 mt-1">
-            Grant educator credentials to author courses, publish assignments, and grade learner submissions.
+            Grant educator credentials to author courses, publish assessments, and grade learner submissions.
           </p>
         </div>
 
@@ -114,6 +127,22 @@ function CreateInstructor() {
 
           <div>
             <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+              Contact Phone Number
+            </label>
+            <div className="relative">
+              <Phone size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="tel"
+                placeholder="+1 (555) 234-5678"
+                value={formData.phoneNumber}
+                onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
+                className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-4 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-slate-500 focus:bg-white transition-colors"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
               Initial Temporary Password *
             </label>
             <div className="relative">
@@ -133,14 +162,14 @@ function CreateInstructor() {
             <button
               type="button"
               onClick={() => navigate("/admin/instructors")}
-              className="px-4 py-2.5 border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg transition-colors"
+              className="px-4 py-2.5 border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg transition-colors cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg shadow-xs transition-colors disabled:opacity-50 inline-flex items-center gap-2"
+              className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg shadow-xs transition-colors disabled:opacity-50 inline-flex items-center gap-2 cursor-pointer"
             >
               <Send size={14} />
               {submitting ? "Provisioning..." : "Provision Faculty Account"}

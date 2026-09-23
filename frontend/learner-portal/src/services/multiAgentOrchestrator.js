@@ -5,7 +5,6 @@
  */
 
 import { getAllCourses } from "./courseService.js";
-import { getAllAssessments } from "./assessmentService.js";
 import { getCurrentUser } from "./userService.js";
 import { sendJsonRpcRequest } from "./mcpService.js";
 
@@ -14,7 +13,7 @@ export const AGENT_REGISTRY = {
     id: "agent_supervisor",
     name: "Autonomous Supervisor Agent",
     role: "Meta-Orchestrator & Task Decomposer",
-    avatar: "👑",
+    avatar: "Mentor",
     model: "gemini-1.5-pro-enterprise",
     status: "ACTIVE",
   },
@@ -22,7 +21,7 @@ export const AGENT_REGISTRY = {
     id: "agent_coach",
     name: "Learning Diagnostic Coach",
     role: "Pacing, Telemetry & Friction Analyst",
-    avatar: "🧠",
+    avatar: "Coach",
     model: "gemini-1.5-pro",
     status: "READY",
   },
@@ -30,7 +29,7 @@ export const AGENT_REGISTRY = {
     id: "agent_evaluator",
     name: "Adaptive Assessment Agent",
     role: "Diagnostic Challenge Generator & Grader",
-    avatar: "📝",
+    avatar: "Exam",
     model: "gemini-1.5-flash",
     status: "READY",
   },
@@ -38,7 +37,7 @@ export const AGENT_REGISTRY = {
     id: "agent_skill_gap",
     name: "Skill Framework & Gap Analyst",
     role: "Industry Competency Matrix Correlator",
-    avatar: "🎯",
+    avatar: "Skill",
     model: "gemini-1.5-pro",
     status: "READY",
   },
@@ -46,7 +45,7 @@ export const AGENT_REGISTRY = {
     id: "agent_career",
     name: "Career Guidance & Milestone Strategist",
     role: "Roadmap Synthesizer & Role Alignment",
-    avatar: "🚀",
+    avatar: "Career",
     model: "gemini-1.5-pro",
     status: "READY",
   },

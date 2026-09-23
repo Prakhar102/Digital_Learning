@@ -8,13 +8,9 @@ import {
   Brain,
   Layers,
   Sparkles,
-  ExternalLink,
   ChevronRight,
   Filter,
-  CheckCircle2,
-  Tag,
   Copy,
-  Calendar,
   X,
   Bot,
 } from "lucide-react";

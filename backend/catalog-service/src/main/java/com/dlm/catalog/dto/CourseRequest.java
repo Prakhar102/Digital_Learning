@@ -22,4 +22,6 @@ public class CourseRequest {
 
     @NotNull
     private Long ownerUserId;
+
+    private com.dlm.catalog.entity.CourseStatus status;
 }

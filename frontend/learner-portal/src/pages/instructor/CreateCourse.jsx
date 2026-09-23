@@ -1,29 +1,28 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  BookOpen,
-  PlusCircle,
   ArrowLeft,
   CheckCircle,
   AlertCircle,
   Send,
-  Image as ImageIcon,
   Sparkles,
-  RefreshCw,
   Eye,
+  Check,
+  Image as ImageIcon,
 } from "lucide-react";
-import InstructorLayout from "../../components/instructor/InstructorLayout";
-import { createCourse } from "../../services/courseService";
+import { createCourse, CATEGORY_TAXONOMY_MAP } from "../../services/courseService";
 import { getCurrentUser } from "../../services/userService";
 import { TECH_THUMBNAIL_PRESETS, getAutoThumbnail } from "../../utils/courseThumbnails";
 import UdemyCourseCard from "../../components/course/UdemyCourseCard";
 
 function CreateCourse() {
   const navigate = useNavigate();
+  const [currentUser, setCurrentUser] = useState(null);
   const [formData, setFormData] = useState({
     title: "",
     description: "",
-    category: "Software Engineering",
+    categoryId: 2,
+    category: "Python & Full Stack",
     level: "BEGINNER",
     imageUrl: "",
     price: 449,
@@ -32,6 +31,18 @@ function CreateCourse() {
   const [selectedPresetId, setSelectedPresetId] = useState(TECH_THUMBNAIL_PRESETS[0].id);
   const [submitting, setSubmitting] = useState(false);
   const [status, setStatus] = useState({ type: "", msg: "" });
+
+  useEffect(() => {
+    async function loadUser() {
+      try {
+        const u = await getCurrentUser();
+        setCurrentUser(u);
+      } catch (e) {
+        console.warn("Failed to load user in CreateCourse:", e);
+      }
+    }
+    loadUser();
+  }, []);
 
   // Automatically update suggested 3D thumbnail when title or category changes
   useEffect(() => {
@@ -48,42 +59,66 @@ function CreateCourse() {
     setFormData((prev) => ({ ...prev, imageUrl: preset.url }));
   };
 
-  const handleSubmit = async (e) => {
+  const handleCategoryChange = (e) => {
+    const selectedId = Number(e.target.value);
+    const catObj = CATEGORY_TAXONOMY_MAP.find((c) => c.id === selectedId);
+    setFormData((prev) => ({
+      ...prev,
+      categoryId: selectedId,
+      category: catObj ? catObj.name : prev.category,
+    }));
+  };
+
+  async function handleSubmit(e) {
     e.preventDefault();
-    if (!formData.title.trim()) return;
+    if (!formData.title.trim()) {
+      setStatus({ type: "error", msg: "Please enter a course title." });
+      return;
+    }
 
     try {
       setSubmitting(true);
-      const user = await getCurrentUser();
+      setStatus({ type: "", msg: "" });
+      const user = currentUser || (await getCurrentUser());
       const payload = {
-        ...formData,
-        instructorId: user?.id || 1,
+        title: formData.title.trim(),
+        description: formData.description.trim(),
+        level: formData.level || "BEGINNER",
+        categoryId: Number(formData.categoryId || 2),
+        category: formData.category,
+        ownerUserId: Number(user?.id || 1),
+        instructorId: Number(user?.id || 1),
         instructorName: user?.fullName || "Faculty Instructor",
         imageUrl: formData.imageUrl || getAutoThumbnail(formData.title, formData.category),
         status: "PUBLISHED",
+        price: Number(formData.price) || 449,
       };
 
-      const res = await createCourse(payload);
-      setStatus({ type: "success", msg: "Course curriculum created and published successfully!" });
+      await createCourse(payload);
+      setStatus({ type: "success", msg: "Course curriculum track created and published successfully!" });
       setTimeout(() => {
         navigate("/instructor/my-courses");
-      }, 1500);
+      }, 1200);
     } catch (err) {
-      console.error(err);
-      setStatus({ type: "error", msg: "Failed to publish course. Please try again." });
+      console.error("Course creation error:", err);
+      const errorMsg =
+        err?.response?.data?.message ||
+        (typeof err?.response?.data === "string" ? err?.response?.data : null) ||
+        err?.message ||
+        "Failed to publish course. Please check all fields and try again.";
+      setStatus({ type: "error", msg: errorMsg });
     } finally {
       setSubmitting(false);
     }
-  };
+  }
 
   return (
-    <InstructorLayout>
-      <div className="p-8 max-w-7xl mx-auto space-y-6">
+    <div className="p-8 max-w-7xl mx-auto space-y-6">
         {/* ── Top Bar ── */}
         <div className="flex items-center justify-between pb-4 border-b border-slate-200">
           <button
             onClick={() => navigate("/instructor/my-courses")}
-            className="inline-flex items-center gap-2 text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors"
+            className="inline-flex items-center gap-2 text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
           >
             <ArrowLeft size={14} /> Back to Courses
           </button>
@@ -105,11 +140,10 @@ function CreateCourse() {
 
         {status.msg && (
           <div
-            className={`p-4 rounded-xl text-xs font-semibold flex items-center gap-2 shadow-xs ${
-              status.type === "success"
-                ? "bg-emerald-50 border border-emerald-200 text-emerald-800"
-                : "bg-rose-50 border border-rose-200 text-rose-800"
-            }`}
+            className={`p-4 rounded-xl text-xs font-semibold flex items-center gap-2 shadow-xs ${status.type === "success"
+              ? "bg-emerald-50 border border-emerald-200 text-emerald-800"
+              : "bg-rose-50 border border-rose-200 text-rose-800"
+              }`}
           >
             {status.type === "success" ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
             {status.msg}
@@ -140,20 +174,18 @@ function CreateCourse() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-                    Category Taxonomy
+                    Category Taxonomy *
                   </label>
                   <select
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                    value={formData.categoryId}
+                    onChange={handleCategoryChange}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-medium text-slate-900 focus:outline-hidden focus:border-indigo-600 focus:bg-white transition-colors"
                   >
-                    <option value="AI & Machine Learning">AI & Machine Learning</option>
-                    <option value="Java & Spring Boot">Java & Spring Boot</option>
-                    <option value="Python & Full Stack">Python & Full Stack</option>
-                    <option value="Cybersecurity & SOC">Cybersecurity & SOC</option>
-                    <option value="Cloud & DevOps (K8s)">Cloud & DevOps (K8s)</option>
-                    <option value="Frontend (React & Next.js)">Frontend (React & Next.js)</option>
-                    <option value="System Design & Architecture">System Design & Architecture</option>
+                    {CATEGORY_TAXONOMY_MAP.map((cat) => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
@@ -211,7 +243,7 @@ function CreateCourse() {
                         </p>
                         {isSelected && (
                           <span className="absolute top-2 right-2 h-4 w-4 bg-indigo-600 text-white rounded-full flex items-center justify-center text-[9px] font-bold">
-                            ✓
+                            <Check size={10} strokeWidth={3} />
                           </span>
                         )}
                       </div>
@@ -275,7 +307,7 @@ function CreateCourse() {
                 category: formData.category,
                 level: formData.level,
                 imageUrl: formData.imageUrl,
-                instructorName: "Faculty Instructor",
+                instructorName: currentUser?.fullName || "Faculty Instructor",
                 description: formData.description,
               }}
               isEnrolled={false}
@@ -292,7 +324,6 @@ function CreateCourse() {
           </div>
         </div>
       </div>
-    </InstructorLayout>
   );
 }
 

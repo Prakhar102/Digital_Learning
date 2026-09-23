@@ -1,11 +1,7 @@
 import { useState } from "react";
 import {
-  ShieldCheck,
-  Database,
-  Lock,
   CheckCircle,
   Save,
-  Server,
 } from "lucide-react";
 import AdminLayout from "../../components/admin/AdminLayout";
 

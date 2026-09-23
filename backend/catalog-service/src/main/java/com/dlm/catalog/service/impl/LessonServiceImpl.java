@@ -32,17 +32,35 @@ public class LessonServiceImpl implements LessonService {
                                 new RuntimeException(
                                         "Module not found"));
 
+        String cType = (request.getContentType() != null && !request.getContentType().isBlank())
+                ? request.getContentType()
+                : "VIDEO";
+
+        String vUrl = (request.getVideoUrl() != null && !request.getVideoUrl().isBlank())
+                ? request.getVideoUrl()
+                : request.getContentRef();
+
+        String cRef = (request.getContentRef() != null && !request.getContentRef().isBlank())
+                ? request.getContentRef()
+                : vUrl;
+
+        Integer seq = request.getSequenceNumber() != null
+                ? request.getSequenceNumber()
+                : (request.getOrderIndex() != null ? request.getOrderIndex() : 1);
+
+        Integer duration = request.getDurationInMinutes() != null
+                ? request.getDurationInMinutes()
+                : 15;
+
         Lesson lesson =
                 Lesson.builder()
                         .title(request.getTitle())
-                        .contentType(
-                                request.getContentType())
-                        .contentRef(
-                                request.getContentRef())
-                        .durationInMinutes(
-                                request.getDurationInMinutes())
-                        .sequenceNumber(
-                                request.getSequenceNumber())
+                        .contentType(cType)
+                        .contentRef(cRef)
+                        .videoUrl(vUrl)
+                        .content(request.getContent())
+                        .durationInMinutes(duration)
+                        .sequenceNumber(seq)
                         .module(module)
                         .build();
 
@@ -69,6 +87,8 @@ public class LessonServiceImpl implements LessonService {
                 .title(lesson.getTitle())
                 .contentType(lesson.getContentType())
                 .contentRef(lesson.getContentRef())
+                .videoUrl(lesson.getVideoUrl())
+                .content(lesson.getContent())
                 .durationInMinutes(
                         lesson.getDurationInMinutes())
                 .sequenceNumber(

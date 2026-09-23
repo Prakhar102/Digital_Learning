@@ -2,6 +2,7 @@
  * streakService.js - Real-Time Dynamic Learning Streak & 52-Week Activity Heatmap Engine
  * Tracks genuine user actions (lessons watched, assignments submitted, quizzes passed, logins)
  * and calculates dynamic consecutive streaks, max streaks, active day totals, and heatmaps.
+ * Zero static data: starts at 0 and increments strictly upon real activity.
  */
 
 const ACTIVITY_LOG_KEY = "dlm_learner_activity_log";
@@ -38,7 +39,7 @@ export const recordUserActivity = (userId, type = "LEARNING_ACTION", metadata = 
 };
 
 /**
- * Calculates dynamic 52-week streak metrics for a learner
+ * Calculates dynamic 52-week streak metrics for a learner strictly from real logs
  */
 export const calculateLearnerStreak = (user, enrollments = []) => {
   const userId = user?.id || 1;
@@ -55,10 +56,6 @@ export const calculateLearnerStreak = (user, enrollments = []) => {
   let maxStreak = 0;
   let tempStreak = 0;
 
-  // Deterministic seed rooted from user profile + enrollments for organic base history
-  const seedString = `${user?.id || 1}-${user?.username || user?.fullName || "student"}-${enrollments.length}`;
-  const seed = seedString.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
-
   // Generate each day from 364 days ago up to today
   for (let i = totalDays - 1; i >= 0; i--) {
     const d = new Date();
@@ -68,22 +65,8 @@ export const calculateLearnerStreak = (user, enrollments = []) => {
     const month = d.toLocaleString("default", { month: "short" });
     const dateStr = d.toISOString().split("T")[0];
 
-    // Real recorded activities take primary precedence
-    const recordedCount = userLogs[dateStr] || 0;
-
-    // Organic activity baseline based on registration and user activity
-    const isRecent = i < 16;
-    const pseudoRandom = Math.sin(seed + i * 19.87) * 10000;
-    const val = Math.abs(pseudoRandom - Math.floor(pseudoRandom));
-
-    let count = recordedCount;
-    if (count === 0) {
-      if (isRecent) {
-        count = val > 0.20 ? Math.floor(val * 4) + 1 : 0;
-      } else {
-        count = val > 0.50 ? Math.floor(val * 3) + 1 : 0;
-      }
-    }
+    // Real recorded activities strictly
+    const count = userLogs[dateStr] || 0;
 
     // LeetCode green tiers (0 to 4)
     let level = 0;
@@ -115,15 +98,24 @@ export const calculateLearnerStreak = (user, enrollments = []) => {
   }
 
   // Calculate current streak from today backwards consecutively
-  for (let i = days.length - 1; i >= 0; i--) {
-    if (days[i].count > 0) {
-      currentStreak++;
-    } else {
-      // If today has no activity yet, check yesterday before breaking
-      if (i === days.length - 1) {
-        continue;
+  // If today is active, start from today; if not, check yesterday
+  const todayEntry = days[days.length - 1];
+  const yesterdayEntry = days.length > 1 ? days[days.length - 2] : null;
+
+  let startIndex = -1;
+  if (todayEntry && todayEntry.count > 0) {
+    startIndex = days.length - 1;
+  } else if (yesterdayEntry && yesterdayEntry.count > 0) {
+    startIndex = days.length - 2;
+  }
+
+  if (startIndex !== -1) {
+    for (let i = startIndex; i >= 0; i--) {
+      if (days[i].count > 0) {
+        currentStreak++;
+      } else {
+        break;
       }
-      break;
     }
   }
 
@@ -133,8 +125,8 @@ export const calculateLearnerStreak = (user, enrollments = []) => {
     groupedWeeks.push(days.slice(i, i + 7));
   }
 
-  const finalCurrentStreak = Math.max(1, currentStreak);
-  const finalMaxStreak = Math.max(finalCurrentStreak, maxStreak, 14);
+  const finalCurrentStreak = currentStreak;
+  const finalMaxStreak = Math.max(finalCurrentStreak, maxStreak);
 
   return {
     weeks: groupedWeeks,
@@ -142,7 +134,8 @@ export const calculateLearnerStreak = (user, enrollments = []) => {
       currentStreak: finalCurrentStreak,
       maxStreak: finalMaxStreak,
       totalActiveDays: activeDaysCount,
-      consistencyScore: `${Math.min(99.4, (activeDaysCount / 1.8).toFixed(1))}%`,
+      consistencyScore: activeDaysCount > 0 ? `${Math.min(100, ((activeDaysCount / 30) * 100).toFixed(0))}%` : "0%",
     },
   };
 };
+

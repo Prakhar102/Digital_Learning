@@ -2,22 +2,18 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   BookOpen,
-  CheckCircle,
   PlayCircle,
   ArrowLeft,
   ChevronDown,
   ChevronRight,
-  Sparkles,
   Flame,
   Star,
   Eye,
-  User,
   GraduationCap,
-  Clock,
   Award,
 } from "lucide-react";
 import DashboardLayout from "../../components/dashboard/DashboardLayout";
-import { getCourseDetails, getCourseById } from "../../services/courseService";
+import { getCourseDetails, getCourseById, getCourseViews, recordUniqueCourseView, getCourseRatingData } from "../../services/courseService";
 import { getModulesByCourse } from "../../services/moduleService";
 import { enrollInCourse, getMyCourses } from "../../services/enrollmentService";
 import { getCurrentUser } from "../../services/userService";
@@ -34,16 +30,29 @@ function CourseDetail() {
   const [enrolling, setEnrolling] = useState(false);
   const [expandedModules, setExpandedModules] = useState({});
   const [statusMessage, setStatusMessage] = useState(null);
+  const [viewsCount, setViewsCount] = useState(() => getCourseViews(courseId));
+  const [ratingData, setRatingData] = useState(() => getCourseRatingData(courseId));
 
   useEffect(() => {
     loadCourseData();
+    setRatingData(getCourseRatingData(courseId));
+    const handleStorage = () => {
+      setViewsCount(getCourseViews(courseId));
+      setRatingData(getCourseRatingData(courseId));
+    };
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
   }, [courseId]);
 
-  const loadCourseData = async () => {
+  async function loadCourseData() {
     try {
       setLoading(true);
       const user = await getCurrentUser();
       setCurrentUser(user);
+
+      // Record unique view strictly once per learner
+      const currentViews = recordUniqueCourseView(courseId, user?.id);
+      setViewsCount(currentViews);
 
       if (user?.id) {
         const enrollments = await getMyCourses(user.id);
@@ -130,11 +139,14 @@ function CourseDetail() {
   }
 
   const thumbnail = course.imageUrl || course.thumbnailUrl || getAutoThumbnail(course.title, course.categoryName || course.category);
-  const instructorName = course.instructorName || course.author || "Aritra Basak (Faculty Lead)";
-  const seed = (course.id || course.title || "course").toString().split("").reduce((acc, c) => acc + c.charCodeAt(0), 0);
-  const rating = (4.6 + ((seed % 5) * 0.08)).toFixed(1);
-  const reviewsCount = 120 + (seed % 35) * 45;
-  const viewsCount = 1800 + (seed % 40) * 190;
+  const instructorName =
+    course.instructorName && course.instructorName !== "Instructor"
+      ? course.instructorName
+      : course.author && course.author !== "Instructor"
+      ? course.author
+      : "Swati Kumari";
+  const currentRating = ratingData?.rating > 0 ? ratingData.rating : 5.0;
+  const reviewsCount = ratingData?.count || 0;
 
   return (
     <DashboardLayout>
@@ -203,7 +215,7 @@ function CourseDetail() {
                 <div className="flex items-center gap-1.5">
                   <div className="flex items-center gap-1 text-amber-500">
                     <Star size={14} className="fill-amber-400 text-amber-400" />
-                    <span className="font-bold text-slate-900">{rating}</span>
+                    <span className="font-bold text-slate-900">{currentRating}</span>
                   </div>
                   <span className="text-slate-400">({reviewsCount} ratings)</span>
                 </div>

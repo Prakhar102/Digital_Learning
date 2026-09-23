@@ -19,7 +19,10 @@ function DashboardNavbar({ user }) {
   } catch (error) {
     console.error(error);
   } finally {
-    localStorage.clear();
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    localStorage.removeItem("role");
 
     navigate("/login");
   }

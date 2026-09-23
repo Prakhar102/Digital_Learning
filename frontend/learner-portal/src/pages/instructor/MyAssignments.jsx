@@ -3,13 +3,11 @@ import { useNavigate } from "react-router-dom";
 import {
   FileCheck,
   PlusCircle,
-  Clock,
-  BookOpen,
   Calendar,
-  Users,
   ChevronRight,
+  FileText,
+  Download,
 } from "lucide-react";
-import InstructorLayout from "../../components/instructor/InstructorLayout";
 import { getInstructorAssignments } from "../../services/assignmentService";
 import { getCurrentUser } from "../../services/userService";
 
@@ -22,7 +20,7 @@ function MyAssignments() {
     loadAssignments();
   }, []);
 
-  const loadAssignments = async () => {
+  async function loadAssignments() {
     try {
       const user = await getCurrentUser();
       if (user?.id) {
@@ -34,11 +32,20 @@ function MyAssignments() {
     } finally {
       setLoading(false);
     }
+  }
+
+  const handleDownloadAttachment = (dataUrl, fileName) => {
+    if (!dataUrl) return;
+    const link = document.createElement("a");
+    link.href = dataUrl;
+    link.download = fileName || "assignment_problem_doc.pdf";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   return (
-    <InstructorLayout>
-      <div className="p-8 max-w-7xl mx-auto space-y-6">
+    <div className="p-8 max-w-7xl mx-auto space-y-6">
         {/* ── Header ── */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-200">
           <div>
@@ -46,7 +53,7 @@ function MyAssignments() {
               Assigned Course Tasks
             </h1>
             <p className="text-sm text-slate-500 mt-1">
-              Review all active problem statements, homework assignments, and due dates.
+              Review all active problem statements, homework assignments, attached documents, and due dates.
             </p>
           </div>
 
@@ -99,9 +106,28 @@ function MyAssignments() {
                     {item.title}
                   </h3>
 
-                  <p className="text-xs text-slate-500 line-clamp-3 mb-4 leading-relaxed">
+                  <p className="text-xs text-slate-500 line-clamp-3 mb-3 leading-relaxed">
                     {item.description || "No description provided."}
                   </p>
+
+                  {/* Attached Document Pill */}
+                  {item.attachmentUrl && (
+                    <div className="mb-4 p-2.5 bg-slate-50 border border-slate-200/80 rounded-lg flex items-center justify-between">
+                      <div className="flex items-center gap-2 overflow-hidden">
+                        <FileText size={14} className="text-indigo-600 shrink-0" />
+                        <span className="text-[11px] font-bold text-slate-800 truncate">
+                          {item.attachmentName || "Attached Problem Document"}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => handleDownloadAttachment(item.attachmentUrl, item.attachmentName)}
+                        className="p-1 text-slate-500 hover:text-indigo-600 hover:bg-white rounded transition-colors shrink-0"
+                        title="Download attached document"
+                      >
+                        <Download size={13} />
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <div className="pt-4 border-t border-slate-100 flex items-center justify-between text-xs">
@@ -121,7 +147,6 @@ function MyAssignments() {
           </div>
         )}
       </div>
-    </InstructorLayout>
   );
 }
 

@@ -1,12 +1,11 @@
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   Trophy,
-  CheckCircle,
   XCircle,
   RotateCcw,
   Award,
-  ArrowRight,
   ListOrdered,
+  ClipboardCheck,
 } from "lucide-react";
 import DashboardLayout from "../../components/dashboard/DashboardLayout";
 
@@ -52,12 +51,12 @@ function AssessmentResult() {
           </div>
 
           {/* Action Buttons */}
-          <div className="pt-4 border-t border-slate-100 flex items-center justify-center gap-3">
+          <div className="pt-4 border-t border-slate-100 flex items-center justify-center gap-3 flex-wrap">
             <button
-              onClick={() => navigate(`/assessments/${assessmentId}/take`)}
-              className="px-4 py-2 border border-slate-200 text-slate-700 text-xs font-semibold rounded-lg hover:bg-slate-50 transition-colors flex items-center gap-1.5 shadow-xs"
+              onClick={() => navigate("/my-assessments")}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 shadow-xs"
             >
-              <RotateCcw size={13} /> Retake Assessment
+              <ClipboardCheck size={13} /> View Assessment History
             </button>
 
             <button
@@ -67,10 +66,17 @@ function AssessmentResult() {
               <ListOrdered size={13} /> View Leaderboard
             </button>
 
+            <button
+              onClick={() => navigate(`/take-assessment/${assessmentId}`)}
+              className="px-4 py-2 border border-slate-200 text-slate-700 text-xs font-semibold rounded-lg hover:bg-slate-50 transition-colors flex items-center gap-1.5 shadow-xs"
+            >
+              <RotateCcw size={13} /> Retake Assessment
+            </button>
+
             {passed && (
               <button
                 onClick={() => navigate("/certificates")}
-                className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 shadow-xs"
+                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 shadow-xs"
               >
                 <Award size={13} /> View Certificate
               </button>

@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
-  Trophy,
   Award,
   ShieldCheck,
   Download,
@@ -11,28 +10,42 @@ import {
 } from "lucide-react";
 import DashboardLayout from "../../components/dashboard/DashboardLayout";
 import { getCurrentUser } from "../../services/userService";
+import { getCertificateById } from "../../services/certificateService";
 
 function CertificateView() {
   const { certificateId } = useParams();
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
+  const [cert, setCert] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadUser();
-  }, []);
+    loadData();
+  }, [certificateId]);
 
-  const loadUser = async () => {
+  async function loadData() {
     try {
-      const u = await getCurrentUser();
+      setLoading(true);
+      const [u, c] = await Promise.all([
+        getCurrentUser(),
+        getCertificateById(certificateId),
+      ]);
       setUser(u);
+      setCert(c);
     } catch (e) {
-      console.error(e);
+      console.error("Error loading certificate:", e);
+    } finally {
+      setLoading(false);
     }
-  };
+  }
 
   const handlePrint = () => {
     window.print();
   };
+
+  const recipientName = cert?.userName || user?.fullName || "Distinguished Scholar";
+  const courseTitle = cert?.courseTitle || "Professional Engineering Certification Track";
+  const issueDate = cert?.issuedAt ? new Date(cert.issuedAt).toLocaleDateString() : new Date().toLocaleDateString();
 
   return (
     <DashboardLayout>
@@ -62,7 +75,7 @@ function CertificateView() {
         </div>
 
         {/* ── Certificate Preview Canvas ── */}
-        <div className="bg-white border-8 border-double border-slate-200 rounded-2xl p-14 text-center space-y-8 relative overflow-hidden shadow-lg bg-radial from-amber-50/30 to-white">
+        <div className="bg-white border-8 border-double border-slate-200 rounded-2xl p-12 text-center space-y-7 relative overflow-hidden shadow-lg bg-radial from-amber-50/40 via-white to-white print:border-4 print:p-8">
           <div className="flex items-center justify-center gap-3">
             <div className="h-12 w-12 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-md">
               <Award size={28} />
@@ -77,28 +90,31 @@ function CertificateView() {
             </div>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-2.5">
             <p className="text-xs text-slate-500 uppercase tracking-[4px] font-bold">
-              Certificate of Excellence
+              Certificate of Completion & Excellence
             </p>
             <p className="text-xs text-slate-400">This is to proudly certify that</p>
             <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight py-1 font-serif">
-              {user?.fullName || "Distinguished Scholar"}
+              {recipientName}
             </h1>
             <p className="text-xs text-slate-600 max-w-xl mx-auto leading-relaxed">
-              has successfully fulfilled all curriculum requirements, passed comprehensive evaluations, and demonstrated proficient mastery in
+              has successfully fulfilled 100% of curriculum modules, completed all video lecture requirements, and demonstrated mastery in
             </p>
-            <h3 className="text-xl font-bold text-amber-600">
-              Cloud-Native Distributed Systems & Microservices Engineering
+            <h3 className="text-2xl font-bold text-amber-600">
+              {courseTitle}
             </h3>
+            <p className="text-[11px] text-emerald-700 font-semibold flex items-center justify-center gap-1">
+              <CheckCircle2 size={13} /> {cert?.grade || "Passed with Distinction (100% Completed)"}
+            </p>
           </div>
 
           {/* Signatures & Seal */}
           <div className="pt-8 border-t border-slate-200 grid grid-cols-3 gap-6 items-end text-center">
             <div>
-              <p className="text-xs font-serif italic text-slate-700 font-bold">Dr. Elizabeth Vance</p>
+              <p className="text-xs font-serif italic text-slate-700 font-bold">Prakhar Parth</p>
               <div className="h-0.5 w-28 bg-slate-300 mx-auto my-1" />
-              <p className="text-[10px] text-slate-500 uppercase font-semibold">Academic Dean</p>
+              <p className="text-[10px] text-slate-500 uppercase font-semibold">Lead Instructor</p>
             </div>
 
             <div className="flex flex-col items-center">
@@ -108,10 +124,13 @@ function CertificateView() {
               <p className="text-[9px] font-mono text-slate-400 mt-1 uppercase">
                 UID: {certificateId}
               </p>
+              <p className="text-[8px] font-mono text-slate-400">
+                Issued: {issueDate}
+              </p>
             </div>
 
             <div>
-              <p className="text-xs font-serif italic text-slate-700 font-bold">Marcus Sterling, M.Sc.</p>
+              <p className="text-xs font-serif italic text-slate-700 font-bold">Academic Board</p>
               <div className="h-0.5 w-28 bg-slate-300 mx-auto my-1" />
               <p className="text-[10px] text-slate-500 uppercase font-semibold">Program Director</p>
             </div>

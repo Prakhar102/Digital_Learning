@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useState, useEffect, useRef, createContext, useContext } from "react";
+import { useNavigate, useLocation, Outlet } from "react-router-dom";
 import {
   LayoutDashboard,
   BookOpen,
@@ -12,38 +12,57 @@ import {
   FileText,
   Bot,
   GraduationCap,
-  CheckCircle2,
   X,
-  ExternalLink,
   Sparkles,
   Layers,
   Brain,
   Cpu,
   Workflow,
   Flame,
-  Zap,
   ChevronRight,
   Settings,
 } from "lucide-react";
-import {
-  getUnreadCount,
-  getUserNotifications,
-  markAsRead,
-} from "../../services/notificationService";
+import { getUserNotifications, markAsRead } from "../../services/notificationService";
 import { getCurrentUser } from "../../services/userService";
 import LeetCodeStreakHeatmap from "../profile/LeetCodeStreakHeatmap";
 import { calculateLearnerStreak } from "../../services/streakService";
 
+const DashboardLayoutContext = createContext(false);
+
 function DashboardLayout({ children }) {
+  const isAlreadyInLayout = useContext(DashboardLayoutContext);
+  if (isAlreadyInLayout) {
+    return <>{children || <Outlet />}</>;
+  }
+
   const navigate = useNavigate();
   const location = useLocation();
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => {
+    try {
+      const stored = localStorage.getItem("user");
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifications, setNotifications] = useState([]);
   const [showNotifDropdown, setShowNotifDropdown] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [toastNotification, setToastNotification] = useState(null);
-  const [streakCount, setStreakCount] = useState(1);
+  const [streakCount, setStreakCount] = useState(() => {
+    try {
+      const stored = localStorage.getItem("user");
+      const u = stored ? JSON.parse(stored) : null;
+      if (u) {
+        const { stats } = calculateLearnerStreak(u);
+        return stats?.currentStreak || 1;
+      }
+      return 1;
+    } catch {
+      return 1;
+    }
+  });
   const lastCountRef = useRef(0);
   const profileModalRef = useRef(null);
 
@@ -83,18 +102,16 @@ function DashboardLayout({ children }) {
   };
 
   useEffect(() => {
-    let intervalId;
+    let intervalId = null;
+    let currentUserId = user?.id || null;
     const init = async () => {
       try {
         const userData = await getCurrentUser();
         setUser(userData);
         if (userData?.id) {
+          currentUserId = userData.id;
           refreshStreak(userData);
           await fetchNotificationData(userData.id);
-          // ── Real-time notification polling every 6 seconds ──
-          intervalId = setInterval(() => {
-            fetchNotificationData(userData.id);
-          }, 6000);
         }
       } catch (e) {
         console.error(e);
@@ -102,22 +119,32 @@ function DashboardLayout({ children }) {
     };
     init();
 
-    const handleStorage = () => {
-      if (user) {
-        refreshStreak(user);
+    // ── Real-time notification polling every 5 seconds ──
+    intervalId = setInterval(() => {
+      if (currentUserId || user?.id) {
+        fetchNotificationData(currentUserId || user?.id);
       }
+    }, 5000);
+
+    const handleStorage = () => {
+      const activeId = currentUserId || user?.id || 1;
+      fetchNotificationData(activeId);
+      if (user) refreshStreak(user);
     };
+
     window.addEventListener("storage", handleStorage);
+    window.addEventListener("dlm-notifications-updated", handleStorage);
 
     return () => {
       if (intervalId) clearInterval(intervalId);
       window.removeEventListener("storage", handleStorage);
+      window.removeEventListener("dlm-notifications-updated", handleStorage);
     };
-  }, []);
+  }, [location.pathname]);
 
   const handleMarkAsRead = async (notifId) => {
     try {
-      await markAsRead(notifId);
+      await markAsRead(notifId, user?.id);
       setNotifications((prev) =>
         prev.map((n) => (n.id === notifId ? { ...n, read: true, isRead: true } : n))
       );
@@ -149,12 +176,16 @@ function DashboardLayout({ children }) {
   ];
 
   const handleLogout = () => {
-    localStorage.clear();
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    localStorage.removeItem("role");
     navigate("/login");
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 flex font-sans antialiased relative">
+    <DashboardLayoutContext.Provider value={true}>
+      <div className="min-h-screen bg-slate-50 text-slate-800 flex font-sans antialiased relative">
       {/* ── Real-Time Popup Notification Toast ── */}
       {toastNotification && (
         <div className="fixed top-5 right-5 z-[9999] max-w-sm bg-white border border-blue-200 rounded-xl p-4 shadow-xl flex items-start gap-3 animate-in fade-in slide-in-from-top-4 duration-300">
@@ -331,7 +362,7 @@ function DashboardLayout({ children }) {
 
         {/* ── Main Content Page ── */}
         <main className="flex-1 bg-slate-50 text-slate-800">
-          {children}
+          {children || <Outlet />}
         </main>
       </div>
 
@@ -424,7 +455,8 @@ function DashboardLayout({ children }) {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </DashboardLayoutContext.Provider>
   );
 }
 

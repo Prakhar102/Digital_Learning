@@ -7,15 +7,17 @@ import {
   FileSpreadsheet,
   ArrowUpRight,
   TrendingUp,
-  Award,
   Users,
   GraduationCap,
   CheckCircle2,
+  Calendar,
+  Clock,
+  Eye,
 } from "lucide-react";
-import InstructorLayout from "../../components/instructor/InstructorLayout";
 import { getCurrentUser } from "../../services/userService";
-import { getAllCourses } from "../../services/courseService";
+import { getAllCourses, getCourseViews } from "../../services/courseService";
 import { getInstructorAssignments } from "../../services/assignmentService";
+import { getAllAssessments } from "../../services/assessmentService";
 import { getInstructorEnrolledStudents } from "../../services/enrollmentService";
 
 function InstructorDashboard() {
@@ -24,10 +26,12 @@ function InstructorDashboard() {
   const [stats, setStats] = useState({
     totalCourses: 0,
     publishedCourses: 0,
+    totalAssessments: 0,
     totalAssignments: 0,
     totalEnrolled: 0,
   });
   const [recentCourses, setRecentCourses] = useState([]);
+  const [recentAssessments, setRecentAssessments] = useState([]);
   const [recentAssignments, setRecentAssignments] = useState([]);
   const [enrolledStudents, setEnrolledStudents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -39,22 +43,26 @@ function InstructorDashboard() {
         setUser(userData);
 
         if (userData?.id) {
-          const [coursesRes, assignmentsRes] = await Promise.allSettled([
+          const [coursesRes, assignmentsRes, assessmentsRes] = await Promise.allSettled([
             getAllCourses(),
             getInstructorAssignments(userData.id),
+            getAllAssessments(),
           ]);
 
           const courses = coursesRes.status === "fulfilled" && Array.isArray(coursesRes.value) ? coursesRes.value : [];
           const assignments = assignmentsRes.status === "fulfilled" && Array.isArray(assignmentsRes.value) ? assignmentsRes.value : [];
-          const students = getInstructorEnrolledStudents(userData.id);
+          const assessments = assessmentsRes.status === "fulfilled" && Array.isArray(assessmentsRes.value) ? assessmentsRes.value : [];
+          const students = getInstructorEnrolledStudents(userData.id, courses);
 
-          setRecentCourses(courses.slice(0, 5));
-          setRecentAssignments(assignments.slice(0, 5));
+          setRecentCourses(courses.slice(0, 4));
+          setRecentAssignments(assignments.slice(0, 4));
+          setRecentAssessments(assessments.slice(0, 4));
           setEnrolledStudents(students);
 
           setStats({
             totalCourses: courses.length,
             publishedCourses: courses.filter((c) => c.status === "PUBLISHED" || c.published).length,
+            totalAssessments: assessments.length,
             totalAssignments: assignments.length,
             totalEnrolled: students.length,
           });
@@ -68,20 +76,16 @@ function InstructorDashboard() {
     load();
 
     const handleStorage = () => {
-      if (user?.id) {
-        const students = getInstructorEnrolledStudents(user.id);
-        setEnrolledStudents(students);
-        setStats((prev) => ({ ...prev, totalEnrolled: students.length }));
-      }
+      load();
     };
     window.addEventListener("storage", handleStorage);
     return () => window.removeEventListener("storage", handleStorage);
   }, []);
 
   const statCards = [
-    { label: "Created Courses", value: stats.totalCourses, icon: BookOpen, desc: "Authored modules" },
-    { label: "Published Tracks", value: stats.publishedCourses, icon: TrendingUp, desc: "Active in catalog" },
-    { label: "Enrolled Students", value: stats.totalEnrolled, icon: Users, desc: "Live student roster" },
+    { label: "Created Courses", value: stats.totalCourses, icon: BookOpen, desc: "Authored tracks" },
+    { label: "Enrolled Learners", value: stats.totalEnrolled, icon: Users, desc: "Live student roster" },
+    { label: "Assessments & Exams", value: stats.totalAssessments, icon: Calendar, desc: "Scheduled quizzes & exams" },
     { label: "Assignments Posted", value: stats.totalAssignments, icon: ClipboardCheck, desc: "Evaluations pending" },
   ];
 
@@ -93,10 +97,10 @@ function InstructorDashboard() {
       path: "/instructor/create-course",
     },
     {
-      label: "Curriculum Manager",
-      desc: "Manage existing content, publish or unpublish",
-      icon: BookOpen,
-      path: "/instructor/my-courses",
+      label: "Schedule Assessment",
+      desc: "Schedule MCQ/Descriptive timed exams with AI",
+      icon: Calendar,
+      path: "/instructor/create-assessment",
     },
     {
       label: "Assignment Manager",
@@ -106,7 +110,7 @@ function InstructorDashboard() {
     },
     {
       label: "Grading Console",
-      desc: "Review student code and evaluate submissions",
+      desc: "Review student submissions and evaluate code",
       icon: FileSpreadsheet,
       path: "/instructor/submissions",
     },
@@ -114,17 +118,14 @@ function InstructorDashboard() {
 
   if (loading) {
     return (
-      <InstructorLayout>
-        <div className="flex items-center justify-center h-screen">
-          <div className="h-6 w-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-        </div>
-      </InstructorLayout>
+      <div className="flex items-center justify-center h-screen">
+        <div className="h-6 w-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+      </div>
     );
   }
 
   return (
-    <InstructorLayout>
-      <div className="p-8 max-w-7xl mx-auto space-y-8">
+    <div className="p-8 max-w-7xl mx-auto space-y-8">
         {/* ── Header ── */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-slate-200">
           <div>
@@ -273,12 +274,14 @@ function InstructorDashboard() {
           )}
         </div>
 
-        {/* ── Content Feeds Grid ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* ── Content Feeds Grid (Courses, Assessments, Assignments) ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Courses */}
-          <div className="bg-white border border-slate-200/80 rounded-xl p-6 shadow-xs">
+          <div className="bg-white border border-slate-200/80 rounded-xl p-5 shadow-xs">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-bold text-slate-900">Your Courses</h3>
+              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+                <BookOpen size={15} className="text-indigo-600" /> Your Courses
+              </h3>
               <button
                 onClick={() => navigate("/instructor/my-courses")}
                 className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 transition-colors cursor-pointer"
@@ -288,7 +291,7 @@ function InstructorDashboard() {
             </div>
             {recentCourses.length === 0 ? (
               <p className="text-xs text-slate-500 py-6 text-center border border-dashed border-slate-200 rounded-lg">
-                No courses created yet. Click "New Course" to get started.
+                No courses created yet. Click "Create New Course" above.
               </p>
             ) : (
               <div className="space-y-2.5">
@@ -297,11 +300,16 @@ function InstructorDashboard() {
                     key={c.id}
                     className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200/80 rounded-lg"
                   >
-                    <div>
-                      <h4 className="text-xs font-semibold text-slate-900">{c.title}</h4>
-                      <p className="text-[11px] text-slate-500 truncate max-w-xs">{c.description || "No description provided"}</p>
+                    <div className="min-w-0 pr-2">
+                      <h4 className="text-xs font-semibold text-slate-900 truncate">{c.title}</h4>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-[11px] text-slate-500 truncate">{c.category || "General Track"}</span>
+                        <span className="text-[10px] text-blue-600 bg-blue-50 border border-blue-100 px-1.5 py-0.2 rounded flex items-center gap-1 font-mono font-bold">
+                          <Eye size={10} /> {getCourseViews(c.id)} views
+                        </span>
+                      </div>
                     </div>
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${c.status === "PUBLISHED" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-slate-200 text-slate-700"}`}>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded shrink-0 ${c.status === "PUBLISHED" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-slate-200 text-slate-700"}`}>
                       {c.status || "DRAFT"}
                     </span>
                   </div>
@@ -310,12 +318,53 @@ function InstructorDashboard() {
             )}
           </div>
 
-          {/* Assignments */}
-          <div className="bg-white border border-slate-200/80 rounded-xl p-6 shadow-xs">
+          {/* Scheduled Assessments */}
+          <div className="bg-white border border-slate-200/80 rounded-xl p-5 shadow-xs">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-bold text-slate-900">Active Assignments</h3>
+              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+                <Calendar size={15} className="text-indigo-600" /> Scheduled Exams & Quizzes
+              </h3>
               <button
-                onClick={() => navigate("/instructor/assignments")}
+                onClick={() => navigate("/instructor/assessments")}
+                className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 transition-colors cursor-pointer"
+              >
+                View all
+              </button>
+            </div>
+            {recentAssessments.length === 0 ? (
+              <p className="text-xs text-slate-500 py-6 text-center border border-dashed border-slate-200 rounded-lg">
+                No assessments scheduled yet.
+              </p>
+            ) : (
+              <div className="space-y-2.5">
+                {recentAssessments.map((a) => (
+                  <div
+                    key={a.id}
+                    className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200/80 rounded-lg"
+                  >
+                    <div className="min-w-0 pr-2">
+                      <h4 className="text-xs font-semibold text-slate-900 truncate">{a.title}</h4>
+                      <p className="text-[11px] text-slate-500 flex items-center gap-1">
+                        <Clock size={11} /> {a.scheduledAt ? new Date(a.scheduledAt).toLocaleDateString() : "Live"} • {a.type}
+                      </p>
+                    </div>
+                    <span className="text-[10px] font-bold px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded shrink-0">
+                      {a.questions?.length || 0} Qs
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Assignments */}
+          <div className="bg-white border border-slate-200/80 rounded-xl p-5 shadow-xs">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+                <ClipboardCheck size={15} className="text-indigo-600" /> Active Assignments
+              </h3>
+              <button
+                onClick={() => navigate("/instructor/my-assignments")}
                 className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 transition-colors cursor-pointer"
               >
                 View all
@@ -332,12 +381,12 @@ function InstructorDashboard() {
                     key={a.id}
                     className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200/80 rounded-lg"
                   >
-                    <div>
-                      <h4 className="text-xs font-semibold text-slate-900">{a.title}</h4>
+                    <div className="min-w-0 pr-2">
+                      <h4 className="text-xs font-semibold text-slate-900 truncate">{a.title}</h4>
                       <p className="text-[11px] text-slate-500">Due: {a.dueDate ? new Date(a.dueDate).toLocaleDateString() : "Flexible"}</p>
                     </div>
-                    <span className="text-[11px] text-slate-600 font-medium">
-                      Course #{a.courseId}
+                    <span className="text-[11px] text-slate-600 font-mono font-medium shrink-0">
+                      {a.maxMarks || 100} pts
                     </span>
                   </div>
                 ))}
@@ -346,7 +395,6 @@ function InstructorDashboard() {
           </div>
         </div>
       </div>
-    </InstructorLayout>
   );
 }
 

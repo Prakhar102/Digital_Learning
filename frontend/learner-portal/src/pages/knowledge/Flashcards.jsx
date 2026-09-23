@@ -3,20 +3,16 @@ import { useNavigate } from "react-router-dom";
 import {
   Brain,
   RotateCw,
-  Sparkles,
   ChevronLeft,
   ChevronRight,
   CheckCircle2,
   XCircle,
-  Award,
-  BookOpen,
-  ArrowLeft,
   Shuffle,
   RefreshCw,
 } from "lucide-react";
 import DashboardLayout from "../../components/dashboard/DashboardLayout";
 import { getAllCourses } from "../../services/courseService";
-import { getCurrentUser } from "../../services/userService";
+
 
 function Flashcards() {
   const navigate = useNavigate();
@@ -31,7 +27,7 @@ function Flashcards() {
     loadDynamicFlashcards();
   }, []);
 
-  const loadDynamicFlashcards = async () => {
+  async function loadDynamicFlashcards() {
     try {
       setLoading(true);
       const courses = await getAllCourses();
@@ -193,7 +189,7 @@ function Flashcards() {
           {/* Question / Answer Text */}
           <div className="py-8 text-center space-y-3">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-              {isFlipped ? "💡 Core Concept / Solution" : "❓ Architectural Question"}
+              {isFlipped ? "Core Concept / Solution" : "Architectural Question"}
             </span>
             <p className="text-lg font-bold text-slate-900 max-w-xl mx-auto leading-relaxed">
               {isFlipped ? currentCard.answer : currentCard.question}

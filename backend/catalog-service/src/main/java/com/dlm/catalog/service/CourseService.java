@@ -24,4 +24,5 @@ public interface CourseService {
     List<CourseResponse> getPublishedCourses();
 
     List<CourseResponse> getCoursesByCategory(Long categoryId);
+    void deleteCourse(Long id);
 }

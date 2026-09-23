@@ -1,31 +1,48 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Bell,
   CheckCircle,
-  Clock,
-  Trash2,
   CheckCheck,
   FileText,
   Award,
   BookOpen,
 } from "lucide-react";
 import DashboardLayout from "../../components/dashboard/DashboardLayout";
+import InstructorLayout from "../../components/instructor/InstructorLayout";
 import {
   getUserNotifications,
   markAsRead,
+  markAllAsRead,
 } from "../../services/notificationService";
 import { getCurrentUser } from "../../services/userService";
 
 function Notifications() {
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => {
+    try {
+      const stored = localStorage.getItem("user");
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const isInstructor =
+    user?.role === "ROLE_INSTRUCTOR" ||
+    user?.role === "INSTRUCTOR" ||
+    user?.role === "FACULTY" ||
+    user?.role === "ROLE_FACULTY";
+
+  const Layout = isInstructor ? InstructorLayout : DashboardLayout;
 
   useEffect(() => {
     loadData();
   }, []);
 
-  const loadData = async () => {
+  async function loadData() {
     try {
       setLoading(true);
       const userData = await getCurrentUser();
@@ -50,7 +67,7 @@ function Notifications() {
 
   const handleMarkRead = async (id) => {
     try {
-      await markAsRead(id);
+      await markAsRead(id, user?.id);
       setNotifications((prev) =>
         prev.map((n) => (n.id === id ? { ...n, read: true, isRead: true } : n))
       );
@@ -62,9 +79,15 @@ function Notifications() {
   };
 
   const handleMarkAllRead = async () => {
-    const unread = notifications.filter((n) => !n.read && !n.isRead);
-    for (const n of unread) {
-      handleMarkRead(n.id);
+    try {
+      await markAllAsRead(user?.id);
+      setNotifications((prev) =>
+        prev.map((n) => ({ ...n, read: true, isRead: true }))
+      );
+    } catch {
+      setNotifications((prev) =>
+        prev.map((n) => ({ ...n, read: true, isRead: true }))
+      );
     }
   };
 
@@ -80,7 +103,7 @@ function Notifications() {
   };
 
   return (
-    <DashboardLayout>
+    <Layout>
       <div className="p-8 max-w-4xl mx-auto space-y-6">
         {/* ── Header ── */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-200">
@@ -144,6 +167,20 @@ function Notifications() {
                       <p className="text-xs text-slate-600 mt-1 leading-relaxed">
                         {n.message}
                       </p>
+
+                      {(n.subject?.toLowerCase().includes("assignment") || n.message?.toLowerCase().includes("assignment")) && (
+                        <div className="mt-2.5">
+                          <button
+                            onClick={() => {
+                              handleMarkRead(n.id);
+                              navigate(isInstructor ? "/instructor/submissions" : "/my-submissions");
+                            }}
+                            className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
+                          >
+                            {isInstructor ? "View Submissions" : "Open Assignments & Submit Solution"} →
+                          </button>
+                        </div>
+                      )}
                     </div>
 
                     {!isRead && (
@@ -162,7 +199,7 @@ function Notifications() {
           )}
         </div>
       </div>
-    </DashboardLayout>
+    </Layout>
   );
 }
 

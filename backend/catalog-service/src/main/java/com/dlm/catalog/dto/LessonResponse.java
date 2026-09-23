@@ -15,9 +15,13 @@ public class LessonResponse {
 
     private String contentRef;
 
+    private String videoUrl;
+
+    private String content;
+
     private Integer durationInMinutes;
 
     private Integer sequenceNumber;
 
     private Long moduleId;
-}
+}

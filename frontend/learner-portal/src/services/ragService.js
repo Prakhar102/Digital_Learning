@@ -1,6 +1,5 @@
 import api from "./api.js";
 import { getAllCourses } from "./courseService.js";
-import { getModulesByCourse } from "./moduleService.js";
 
 // ── Built-in Knowledge Base Base Repository ──
 
