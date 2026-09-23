@@ -130,7 +130,7 @@ export const getAdminStats = async () => {
     totalCertificates = certs.length;
   } catch {}
 
-  const dynamicLearnersCount = Math.max(5, genuineLearnerEmails.size);
+  const dynamicLearnersCount = genuineLearnerEmails.size;
 
   try {
     const response = await api.get("/api/admin/stats");

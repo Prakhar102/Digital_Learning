@@ -14,10 +14,10 @@ import { getAllAssessments } from "../../services/assessmentService";
 import { getAllCertificates } from "../../services/certificateService";
 
 function PlatformStats() {
-  const [learnerCount, setLearnerCount] = useState(5);
+  const [learnerCount, setLearnerCount] = useState(0);
   const [courseCount, setCourseCount] = useState(0);
   const [assessmentCount, setAssessmentCount] = useState(0);
-  const [certCount, setCertCount] = useState(1);
+  const [certCount, setCertCount] = useState(0);
   const [completionRate, setCompletionRate] = useState("0%");
 
   useEffect(() => {
