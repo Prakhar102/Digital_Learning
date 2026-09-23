@@ -75,17 +75,78 @@ export const createInstructor = async (instructorData) => {
 };
 
 export const getAdminStats = async () => {
+  const instructors = getStoredInstructors();
+  const staffEmails = new Set(
+    instructors.map((i) => (i.email || "").toLowerCase().trim()).filter(Boolean)
+  );
+  staffEmails.add("admin@dlm.edu");
+  staffEmails.add("instructor@dlm.edu");
+  staffEmails.add("faculty@dlm.edu");
+
+  const staffIds = new Set(instructors.map((i) => String(i.id)).filter(Boolean));
+  staffIds.add("1");
+
+  const genuineLearnerEmails = new Set();
+  try {
+    const enrollments = JSON.parse(localStorage.getItem("dlm_realtime_enrollments") || "[]");
+    enrollments.forEach((e) => {
+      const email = (e.learnerEmail || "").toLowerCase().trim();
+      const uid = String(e.userId || "");
+      if (
+        (!email || !staffEmails.has(email)) &&
+        (!uid || !staffIds.has(uid)) &&
+        (!e.role || (!e.role.includes("INSTRUCTOR") && !e.role.includes("ADMIN")))
+      ) {
+        if (email) genuineLearnerEmails.add(email);
+        else if (uid) genuineLearnerEmails.add(uid);
+      }
+    });
+  } catch {}
+
+  try {
+    const users = JSON.parse(localStorage.getItem("users") || "[]");
+    if (Array.isArray(users)) {
+      users.forEach((u) => {
+        const role = (u.role || "").toUpperCase();
+        const email = (u.email || "").toLowerCase().trim();
+        const uid = String(u.id || "");
+        if (
+          !role.includes("INSTRUCTOR") &&
+          !role.includes("ADMIN") &&
+          !role.includes("FACULTY") &&
+          (!email || !staffEmails.has(email)) &&
+          (!uid || !staffIds.has(uid))
+        ) {
+          if (email) genuineLearnerEmails.add(email);
+          else if (uid) genuineLearnerEmails.add(uid);
+        }
+      });
+    }
+  } catch {}
+
+  let totalCertificates = 0;
+  try {
+    const certs = JSON.parse(localStorage.getItem("dlm_user_certificates_store") || "[]");
+    totalCertificates = certs.length;
+  } catch {}
+
   try {
     const response = await api.get("/api/admin/stats");
-    return response.data;
-  } catch {
-    const instructors = getStoredInstructors();
-    return {
-      totalLearners: 5,
-      totalInstructors: instructors.length,
-      totalAdmins: 1,
-    };
-  }
+    if (response?.data) {
+      return {
+        ...response.data,
+        totalLearners: response.data.totalLearners !== undefined ? response.data.totalLearners : genuineLearnerEmails.size,
+        totalCertificates: response.data.totalCertificates !== undefined ? response.data.totalCertificates : totalCertificates,
+      };
+    }
+  } catch {}
+
+  return {
+    totalLearners: genuineLearnerEmails.size,
+    totalInstructors: instructors.length,
+    totalAdmins: 1,
+    totalCertificates,
+  };
 };
 
 export const getAllInstructors = async () => {

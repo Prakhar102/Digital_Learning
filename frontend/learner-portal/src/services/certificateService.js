@@ -102,13 +102,17 @@ export const downloadCertificate = async (certificateId) => {
   }
 };
 
-export const checkEligibility = async (userId, courseId) => {
+export const getAllCertificates = async () => {
+  const localList = getStoredLocalCertificates();
+  let backendList = [];
   try {
-    const response = await api.get(
-      `/api/certificates/eligible?userId=${userId}&courseId=${courseId}`
-    );
-    return response.data;
-  } catch {
-    return { eligible: true };
-  }
+    const response = await api.get("/api/certificates");
+    if (Array.isArray(response.data)) {
+      backendList = response.data;
+    }
+  } catch {}
+
+  const backendIds = new Set(backendList.map((c) => String(c.id || c.certificateId)));
+  const extraLocal = localList.filter((c) => !backendIds.has(String(c.id || c.certificateId)));
+  return [...extraLocal, ...backendList];
 };

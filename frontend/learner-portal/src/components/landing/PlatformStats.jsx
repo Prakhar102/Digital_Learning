@@ -8,9 +8,11 @@ import {
   FaAward,
   FaChartLine,
 } from "react-icons/fa";
-import { getAdminStats } from "../../services/adminService";
+import { getAdminStats, getStoredInstructors } from "../../services/adminService";
 import { getAllCourses } from "../../services/courseService";
 import { getAllAssessments } from "../../services/assessmentService";
+import { getAllCertificates } from "../../services/certificateService";
+import { getAllRealtimeEnrollments } from "../../services/enrollmentService";
 
 function PlatformStats() {
   const [learnerCount, setLearnerCount] = useState(0);
@@ -24,45 +26,130 @@ function PlatformStats() {
 
     const fetchRealTimeStats = async () => {
       try {
-        const [statsRes, coursesRes, assessRes] = await Promise.allSettled([
+        const [statsRes, coursesRes, assessRes, certsRes] = await Promise.allSettled([
           getAdminStats(),
           getAllCourses(),
           getAllAssessments(),
+          getAllCertificates(),
         ]);
 
         if (!isMounted) return;
 
-        // Dynamic courses
+        // 1. Dynamic courses count
         if (coursesRes.status === "fulfilled" && Array.isArray(coursesRes.value)) {
           setCourseCount(coursesRes.value.length);
         } else {
           setCourseCount(0);
         }
 
-        // Dynamic assessments
+        // 2. Dynamic assessments count
         if (assessRes.status === "fulfilled" && Array.isArray(assessRes.value)) {
           setAssessmentCount(assessRes.value.length);
         } else {
           setAssessmentCount(0);
         }
 
-        // Dynamic admin & platform telemetry stats
-        if (statsRes.status === "fulfilled" && statsRes.value) {
-          const data = statsRes.value;
-          setLearnerCount(data.totalLearners || data.activeLearners || 0);
-          setCertCount(data.totalCertificates || data.certificatesIssued || 0);
-          if (data.completionRate !== undefined) {
-            setCompletionRate(`${data.completionRate}%`);
-          } else if (data.totalEnrollments && data.completedEnrollments) {
-            const rate = Math.round((data.completedEnrollments / data.totalEnrollments) * 100);
-            setCompletionRate(`${rate}%`);
-          } else {
-            setCompletionRate("0%");
+        // 3. Dynamic Certificates Issued
+        let certificatesCount = 0;
+        if (certsRes.status === "fulfilled" && Array.isArray(certsRes.value)) {
+          certificatesCount = certsRes.value.length;
+        }
+        setCertCount(certificatesCount);
+
+        // 4. Dynamic Active Learners: Count ONLY genuine learners (exclude instructors, admins, faculty)
+        const instructors = getStoredInstructors();
+        const staffEmails = new Set(
+          instructors.map((i) => (i.email || "").toLowerCase().trim()).filter(Boolean)
+        );
+        staffEmails.add("admin@dlm.edu");
+        staffEmails.add("instructor@dlm.edu");
+        staffEmails.add("faculty@dlm.edu");
+
+        const staffIds = new Set(
+          instructors.map((i) => String(i.id)).filter(Boolean)
+        );
+        staffIds.add("1"); // Root admin / default instructor ID
+
+        const genuineLearnerEmails = new Set();
+        const genuineLearnerIds = new Set();
+
+        // Enrolled students registry
+        const enrollments = getAllRealtimeEnrollments();
+        enrollments.forEach((e) => {
+          const email = (e.learnerEmail || "").toLowerCase().trim();
+          const uid = String(e.userId || "");
+          const isStaff =
+            (email && staffEmails.has(email)) ||
+            (uid && staffIds.has(uid)) ||
+            (e.role && (e.role.includes("INSTRUCTOR") || e.role.includes("ADMIN")));
+
+          if (!isStaff) {
+            if (email) genuineLearnerEmails.add(email);
+            if (uid) genuineLearnerIds.add(uid);
           }
+        });
+
+        // Registered users in localStorage (if any)
+        try {
+          const users = JSON.parse(localStorage.getItem("users") || "[]");
+          if (Array.isArray(users)) {
+            users.forEach((u) => {
+              const role = (u.role || "").toUpperCase();
+              const email = (u.email || "").toLowerCase().trim();
+              const uid = String(u.id || "");
+              const isStaff =
+                role.includes("INSTRUCTOR") ||
+                role.includes("ADMIN") ||
+                role.includes("FACULTY") ||
+                (email && staffEmails.has(email)) ||
+                (uid && staffIds.has(uid));
+
+              if (!isStaff) {
+                if (email) genuineLearnerEmails.add(email);
+                if (uid) genuineLearnerIds.add(uid);
+              }
+            });
+          }
+        } catch {}
+
+        // Current user session if learner
+        try {
+          const currUser = JSON.parse(localStorage.getItem("user") || "null");
+          if (currUser) {
+            const role = (currUser.role || "").toUpperCase();
+            const email = (currUser.email || "").toLowerCase().trim();
+            const uid = String(currUser.id || "");
+            const isStaff =
+              role.includes("INSTRUCTOR") ||
+              role.includes("ADMIN") ||
+              role.includes("FACULTY") ||
+              (email && staffEmails.has(email)) ||
+              (uid && staffIds.has(uid));
+
+            if (!isStaff) {
+              if (email) genuineLearnerEmails.add(email);
+              if (uid) genuineLearnerIds.add(uid);
+            }
+          }
+        } catch {}
+
+        const activeLearners = Math.max(genuineLearnerEmails.size, genuineLearnerIds.size);
+        setLearnerCount(activeLearners);
+
+        // 5. Completion Rate calculation
+        if (enrollments.length > 0) {
+          const completedCount = enrollments.filter(
+            (e) => e.status === "COMPLETED" || e.progress >= 100 || e.isCompleted
+          ).length;
+          const rate = Math.round((completedCount / enrollments.length) * 100);
+          setCompletionRate(`${rate}%`);
+        } else if (certificatesCount > 0 && activeLearners > 0) {
+          const rate = Math.min(100, Math.round((certificatesCount / activeLearners) * 100));
+          setCompletionRate(`${rate}%`);
+        } else if (statsRes.status === "fulfilled" && statsRes.value?.completionRate !== undefined) {
+          setCompletionRate(`${statsRes.value.completionRate}%`);
         } else {
-          // If no admin stats or 0 records in DB
-          setLearnerCount((prev) => (prev > 0 ? prev : 0));
-          setCertCount((prev) => (prev > 0 ? prev : 0));
+          setCompletionRate("0%");
         }
       } catch (err) {
         console.error("Error fetching live platform stats:", err);
@@ -71,11 +158,18 @@ function PlatformStats() {
 
     fetchRealTimeStats();
 
-    // Poll live platform telemetry every 10 seconds
-    const interval = setInterval(fetchRealTimeStats, 10000);
+    // Listen to real-time storage events (enrollments, certificates claimed, auth changes)
+    const handleStorageUpdate = () => {
+      fetchRealTimeStats();
+    };
+    window.addEventListener("storage", handleStorageUpdate);
+
+    // Poll live platform telemetry every 5 seconds
+    const interval = setInterval(fetchRealTimeStats, 5000);
     return () => {
       isMounted = false;
       clearInterval(interval);
+      window.removeEventListener("storage", handleStorageUpdate);
     };
   }, []);
 
