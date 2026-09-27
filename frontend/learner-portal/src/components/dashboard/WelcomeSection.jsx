@@ -1,4 +1,5 @@
 import { calculateLearnerStreak } from "../../services/streakService";
+import { Flame } from "lucide-react";
 
 function WelcomeSection({ user }) {
   const { stats } = calculateLearnerStreak(user);

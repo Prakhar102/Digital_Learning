@@ -19,6 +19,7 @@ import {
   searchKnowledgeBase,
   getAllKnowledgeDomains,
   getKnowledgeByDomain,
+  syncLiveKnowledgeFromBackend,
 } from "../../services/ragService";
 
 function KnowledgeHub() {
@@ -29,8 +30,23 @@ function KnowledgeHub() {
   const [isSearching, setIsSearching] = useState(false);
   const [selectedDoc, setSelectedDoc] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [libraryLoading, setLibraryLoading] = useState(true);
+  const [libraryRevision, setLibraryRevision] = useState(0);
 
   const domains = getAllKnowledgeDomains();
+
+  useEffect(() => {
+    let active = true;
+    syncLiveKnowledgeFromBackend()
+      .catch((err) => console.error("Could not load LMS course content:", err))
+      .finally(() => {
+        if (active) {
+          setLibraryLoading(false);
+          setLibraryRevision((revision) => revision + 1);
+        }
+      });
+    return () => { active = false; };
+  }, []);
 
   const handleSearch = async (e) => {
     if (e) e.preventDefault();
@@ -71,6 +87,8 @@ function KnowledgeHub() {
       ? domains.flatMap((d) => getKnowledgeByDomain(d.id).map((i) => ({ ...i, domain: d.id })))
       : getKnowledgeByDomain(activeTab).map((i) => ({ ...i, domain: activeTab }));
 
+  void libraryRevision;
+
   const getDomainIcon = (domainKey) => {
     switch (domainKey) {
       case "course-materials":
@@ -98,10 +116,10 @@ function KnowledgeHub() {
               </span>
             </div>
             <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-              RAG Knowledge Base Explorer
+              LMS Course Content Explorer
             </h1>
             <p className="text-sm text-slate-500 mt-1">
-              Semantic repository covering Course Materials, Architecture References, Certification Blueprints, and Skill Frameworks.
+              Search course descriptions, module notes, and lesson content currently stored in the LMS.
             </p>
           </div>
 
@@ -110,11 +128,11 @@ function KnowledgeHub() {
             className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition-colors shadow-xs"
           >
             <Bot size={15} />
-            Ask AI Mentor (RAG)
+            Search with Learner Lookup
           </button>
         </div>
 
-        {/* ── Semantic Search Box ── */}
+        {/* ── LMS Content Search Box ── */}
         <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-4">
           <form onSubmit={handleSearch} className="flex gap-3">
             <div className="relative flex-1">
@@ -124,7 +142,7 @@ function KnowledgeHub() {
               />
               <input
                 type="text"
-                placeholder="Search across lecture transcripts, certification roadmaps, SFIA skills, or design patterns (e.g. 'Saga pattern', 'Eureka heartbeat', 'Kubernetes rubric')..."
+                placeholder="Search actual course descriptions, module notes, or lesson content..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-11 pr-4 py-3 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:bg-white transition-colors"
@@ -136,7 +154,7 @@ function KnowledgeHub() {
               className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors flex items-center gap-2 shrink-0 disabled:opacity-50"
             >
               <Sparkles size={14} />
-              {isSearching ? "Searching Vector Index..." : "Semantic Search"}
+              {isSearching ? "Searching LMS content…" : "Search LMS Content"}
             </button>
           </form>
 
@@ -172,13 +190,13 @@ function KnowledgeHub() {
           </div>
         </div>
 
-        {/* ── Semantic Search Results (If query active) ── */}
+        {/* ── Search Results (If query active) ── */}
         {searchQuery.trim() && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
                 <Sparkles size={16} className="text-blue-600" />
-                RAG Vector Search Results ({searchResults.length})
+                Course Content Results ({searchResults.length})
               </h2>
               <button
                 onClick={() => {
@@ -193,7 +211,7 @@ function KnowledgeHub() {
 
             {searchResults.length === 0 && !isSearching ? (
               <div className="p-12 text-center bg-white border border-slate-200 rounded-xl">
-                <p className="text-xs text-slate-500">No direct semantic matches found. Try broadening your query terms.</p>
+                <p className="text-xs text-slate-500">No matching words were found in the course text currently available. Try another term or add content to the LMS course.</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -210,7 +228,7 @@ function KnowledgeHub() {
                           {res.category}
                         </span>
                         <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
-                          {res.confidenceScore}% Match
+                          {res.matchedTermCount} query terms matched
                         </span>
                       </div>
 
@@ -239,7 +257,7 @@ function KnowledgeHub() {
         {/* ── 4 Knowledge Domain Overview Cards ── */}
         <div>
           <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-4">
-            Curated Knowledge Collections
+            LMS Content Collections
           </h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -261,7 +279,7 @@ function KnowledgeHub() {
                   <p className="text-xs text-slate-500 mt-1 leading-relaxed">{d.description}</p>
                 </div>
                 <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-slate-700">
-                  <span>{d.count} Indexed Documents</span>
+                  <span>{d.count} Available Items</span>
                   <ChevronRight size={14} className="text-slate-400" />
                 </div>
               </div>
@@ -273,7 +291,7 @@ function KnowledgeHub() {
         <div className="bg-white border border-slate-200/80 rounded-xl overflow-hidden shadow-xs">
           <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
             <h3 className="text-sm font-bold text-slate-900">
-              Repository Index: {activeTab === "all" ? "All Collections" : domains.find((d) => d.id === activeTab)?.title}
+              Current LMS Content: {activeTab === "all" ? "All Course Materials" : domains.find((d) => d.id === activeTab)?.title}
             </h3>
             <span className="text-xs text-slate-500 font-medium">
               {currentItems.length} documents
@@ -281,6 +299,16 @@ function KnowledgeHub() {
           </div>
 
           <div className="divide-y divide-slate-100">
+            {libraryLoading && (
+              <div className="p-8 text-center text-sm text-slate-500">
+                Loading course and lesson content from the LMS…
+              </div>
+            )}
+            {!libraryLoading && currentItems.length === 0 && (
+              <div className="p-8 text-center text-sm text-slate-500">
+                No content is available in this collection yet. Course descriptions, module notes, and lesson content appear here when they exist in the LMS.
+              </div>
+            )}
             {currentItems.map((item) => (
               <div
                 key={item.id}
@@ -297,7 +325,7 @@ function KnowledgeHub() {
                         {item.title}
                       </h4>
                       <p className="text-[11px] text-slate-400">
-                        {item.source} • Updated: {item.lastUpdated || "2026"}
+                        {item.source} • Updated: {item.lastUpdated ? new Date(item.lastUpdated).toLocaleDateString() : "date not provided"}
                       </p>
                     </div>
                   </div>
@@ -351,13 +379,13 @@ function KnowledgeHub() {
               <div className="p-6 overflow-y-auto space-y-4 text-slate-800 leading-relaxed text-xs">
                 <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-1 text-slate-600">
                   <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                    Verified Citation Metadata
+                    LMS Content Metadata
                   </p>
                   <p className="text-xs font-mono font-bold text-slate-900">
                     ID: {selectedDoc.id} • Category: {selectedDoc.category}
                   </p>
                   <p className="text-[11px] text-slate-500">
-                    Indexed for RAG semantic vector similarity search
+                    Retrieved from the current LMS catalog and content services
                   </p>
                 </div>
 
@@ -395,7 +423,7 @@ function KnowledgeHub() {
                   onClick={() => navigate(`/ai-mentor?query=${encodeURIComponent(selectedDoc.title)}`)}
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 shadow-xs"
                 >
-                  <Bot size={14} /> Ask AI Mentor About This
+                  <Bot size={14} /> Search this course material
                 </button>
               </div>
             </div>

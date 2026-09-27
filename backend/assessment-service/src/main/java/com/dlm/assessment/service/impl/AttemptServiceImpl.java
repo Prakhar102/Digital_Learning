@@ -2,6 +2,7 @@ package com.dlm.assessment.service.impl;
 
 import java.util.List;
 import java.util.Map;
+import java.time.LocalDateTime;
 
 import org.springframework.stereotype.Service;
 
@@ -70,6 +71,7 @@ public class AttemptServiceImpl implements AttemptService {
                                 request.getAssessmentId())
                         .score(score)
                         .passed(passed)
+                        .attemptedAt(LocalDateTime.now())
                         .build();
 
         studentAttemptRepository.save(attempt);
@@ -80,6 +82,7 @@ public class AttemptServiceImpl implements AttemptService {
                         request.getAssessmentId())
                 .score(score)
                 .passed(passed)
+                .attemptedAt(attempt.getAttemptedAt())
                 .build();
     }
 
@@ -96,6 +99,7 @@ public class AttemptServiceImpl implements AttemptService {
                                 .assessmentId(attempt.getAssessmentId())
                                 .score(attempt.getScore())
                                 .passed(attempt.getPassed())
+                                .attemptedAt(attempt.getAttemptedAt())
                                 .build())
                 .toList();
     }

@@ -18,7 +18,7 @@ import {
   FileCheck,
 } from "lucide-react";
 import DashboardLayout from "../../components/dashboard/DashboardLayout";
-import { getLearnerSubmissions, getAllAssignments } from "../../services/assignmentService";
+import { getLearnerSubmissions, getAllAssignments, isAssignmentPastDue } from "../../services/assignmentService";
 import { getAllCourses } from "../../services/courseService";
 import { getCurrentUser } from "../../services/userService";
 
@@ -30,12 +30,18 @@ function MySubmissions() {
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activePreviewDoc, setActivePreviewDoc] = useState(null); // { url, name, type, size }
+  const [now, setNow] = useState(Date.now());
 
   useEffect(() => {
     loadData();
     const handleStorage = () => loadData();
     window.addEventListener("storage", handleStorage);
     return () => window.removeEventListener("storage", handleStorage);
+  }, []);
+
+  useEffect(() => {
+    const timerId = window.setInterval(() => setNow(Date.now()), 15000);
+    return () => window.clearInterval(timerId);
   }, []);
 
   async function loadData() {
@@ -83,7 +89,7 @@ function MySubmissions() {
   );
 
   const pendingAssignments = assignments.filter(
-    (a) => !submittedAssignmentIds.has(String(a.id))
+    (a) => !submittedAssignmentIds.has(String(a.id)) && !isAssignmentPastDue(a, now)
   );
 
   return (
@@ -180,6 +186,7 @@ function MySubmissions() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 {assignments.map((item) => {
                   const isSubmitted = submittedAssignmentIds.has(String(item.id));
+                  const deadlinePassed = isAssignmentPastDue(item, now);
                   const courseTitle = courseMap.get(String(item.courseId)) || `Course #${item.courseId}`;
                   const hasDoc = !!item.attachmentUrl;
                   const isPdfDoc = isPdf(item.attachmentUrl, item.attachmentName);
@@ -202,6 +209,10 @@ function MySubmissions() {
                             {isSubmitted ? (
                               <span className="px-2 py-0.5 text-[10px] font-bold rounded bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
                                 <CheckCircle2 size={11} /> Submitted
+                              </span>
+                            ) : deadlinePassed ? (
+                              <span className="px-2 py-0.5 text-[10px] font-bold rounded bg-rose-50 text-rose-700 border border-rose-200 flex items-center gap-1">
+                                <Clock size={11} /> Deadline Passed
                               </span>
                             ) : (
                               <span className="px-2 py-0.5 text-[10px] font-bold rounded bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-1">
@@ -275,15 +286,19 @@ function MySubmissions() {
                         </div>
 
                         <button
+                          type="button"
+                          disabled={deadlinePassed}
                           onClick={() => navigate(`/assignments/${item.id}/submit`)}
-                          className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 cursor-pointer shadow-xs ${
-                            isSubmitted
+                          className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 shadow-xs disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none ${
+                            deadlinePassed
+                              ? "bg-slate-100 text-slate-400"
+                              : isSubmitted
                               ? "bg-slate-100 hover:bg-slate-200 text-slate-800"
                               : "bg-blue-600 hover:bg-blue-700 text-white"
                           }`}
                         >
-                          {isSubmitted ? "Resubmit / Update" : "Submit Solution"}
-                          <ArrowRight size={13} />
+                          {deadlinePassed ? "Submission Closed" : isSubmitted ? "Resubmit / Update" : "Submit Solution"}
+                          {!deadlinePassed && <ArrowRight size={13} />}
                         </button>
                       </div>
                     </div>
@@ -326,6 +341,7 @@ function MySubmissions() {
                     sub.fileName?.toLowerCase().endsWith(".docx");
 
                   const parentAssign = assignments.find((a) => String(a.id) === String(sub.assignmentId));
+                  const deadlinePassed = isAssignmentPastDue(parentAssign, now);
 
                   return (
                     <div key={sub.id} className="p-6 hover:bg-slate-50/60 transition-colors space-y-3">
@@ -418,10 +434,12 @@ function MySubmissions() {
                             </a>
                           ) : null}
                           <button
+                            type="button"
+                            disabled={deadlinePassed}
                             onClick={() => navigate(`/assignments/${sub.assignmentId}/submit`)}
-                            className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-colors"
+                            className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-colors disabled:cursor-not-allowed disabled:text-slate-400 disabled:hover:bg-slate-100"
                           >
-                            Resubmit
+                            {deadlinePassed ? "Deadline Passed" : "Resubmit"}
                           </button>
                         </div>
                       </div>

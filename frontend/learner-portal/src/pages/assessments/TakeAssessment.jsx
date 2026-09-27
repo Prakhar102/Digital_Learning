@@ -191,6 +191,7 @@ function TakeAssessment() {
         totalQuestions: questions.length,
         correctCount: correct,
         percentage,
+        passed,
         answers: isDescriptive ? descriptiveAnswers : answers,
       });
 

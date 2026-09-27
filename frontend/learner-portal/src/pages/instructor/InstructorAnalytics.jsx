@@ -16,7 +16,7 @@ import { getAllCourses, getCourseDetails } from "../../services/courseService";
 import { getModulesByCourse } from "../../services/moduleService";
 import { getInstructorEnrolledStudents } from "../../services/enrollmentService";
 import { getInstructorAssignments, getStoredLocalSubmissions } from "../../services/assignmentService";
-import { getStoredAssessments, getStoredAttempts } from "../../services/assessmentService";
+import { getAllAssessments, getQuestionsByAssessment, getStoredAttempts } from "../../services/assessmentService";
 import { getCurrentUser } from "../../services/userService";
 
 function InstructorAnalytics() {
@@ -55,7 +55,7 @@ function InstructorAnalytics() {
       const enrollments = getInstructorEnrolledStudents(user?.id);
       const assignments = await getInstructorAssignments(user?.id);
       const submissions = getStoredLocalSubmissions();
-      const assessments = getStoredAssessments();
+      const assessments = await getAllAssessments();
       const attempts = getStoredAttempts();
 
       // Filter by selected course if specified
@@ -76,6 +76,13 @@ function InstructorAnalytics() {
 
       const assessmentIds = new Set(filteredAssessments.map((a) => String(a.id)));
       const filteredAttempts = attempts.filter((att) => assessmentIds.has(String(att.assessmentId)));
+      const assessmentQuestionCounts = new Map(await Promise.all(filteredAssessments.map(async (assessment) => {
+        const questions = Array.isArray(assessment.questions) && assessment.questions.length
+          ? assessment.questions
+          : await getQuestionsByAssessment(assessment.id);
+        return [String(assessment.id), Array.isArray(questions) ? questions.length : 0];
+      })));
+      const assignmentById = new Map(filteredAssignments.map((assignment) => [String(assignment.id), assignment]));
 
       // 1. Calculate Active Unique Students
       const uniqueStudentIds = new Set([
@@ -150,7 +157,15 @@ function InstructorAnalytics() {
             id: `att-${att.id}`,
             title: att.assessmentTitle || "Quiz Assessment",
             student: studentName,
-            score: `${att.percentage ?? att.score ?? 0}%`,
+            score: (() => {
+              const total = Number(att.totalQuestions) || assessmentQuestionCounts.get(String(att.assessmentId)) || 0;
+              const earned = att.correctCount !== undefined && att.correctCount !== null
+                ? Number(att.correctCount)
+                : att.percentage !== undefined && total > 0
+                  ? Math.round((Number(att.percentage) * total) / 100)
+                  : Number(att.score);
+              return total > 0 && Number.isFinite(earned) ? `${earned}/${total}` : "Marks unavailable";
+            })(),
             date: att.completedAt || att.submittedAt || "Recently",
             type: "Quiz Exam",
           };
@@ -160,11 +175,14 @@ function InstructorAnalytics() {
           if (!studentName || studentName.includes("undefined") || studentName.includes("null")) {
             studentName = sub.learnerEmail ? sub.learnerEmail.split("@")[0] : (sub.learnerId || sub.userId ? `Learner #${sub.learnerId || sub.userId}` : "Prakhar Parth");
           }
+          const awardedMarks = sub.marks ?? sub.grade;
           return {
             id: `sub-${sub.id}`,
             title: `Assignment Submission #${sub.assignmentId}`,
             student: studentName,
-            score: sub.grade !== null && sub.grade !== undefined ? `${sub.grade}%` : "Pending Grade",
+            score: awardedMarks !== null && awardedMarks !== undefined
+              ? `${awardedMarks}/${assignmentById.get(String(sub.assignmentId))?.maxMarks ?? "—"}`
+              : "Pending Grade",
             date: sub.submittedAt || "Recently",
             type: "Assignment",
           };

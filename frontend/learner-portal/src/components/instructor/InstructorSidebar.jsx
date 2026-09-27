@@ -144,10 +144,16 @@ function InstructorSidebar() {
 
       <div
         className="
+        hide-scrollbar
         flex-1
+        min-h-0
         overflow-y-auto
+        overscroll-contain
         px-4
         "
+        role="navigation"
+        aria-label="Instructor sidebar navigation"
+        tabIndex={0}
       >
         {menu.map((item) => {
           const Icon = item.icon;

@@ -6,7 +6,6 @@ import {
   Trophy,
   ClipboardCheck,
   Bell,
-  UserCircle,
   LogOut,
   Search,
   FileText,
@@ -22,7 +21,7 @@ import {
   ChevronRight,
   Settings,
 } from "lucide-react";
-import { getUserNotifications, markAsRead } from "../../services/notificationService";
+import { getUserNotifications } from "../../services/notificationService";
 import { getCurrentUser } from "../../services/userService";
 import LeetCodeStreakHeatmap from "../profile/LeetCodeStreakHeatmap";
 import { calculateLearnerStreak } from "../../services/streakService";
@@ -35,6 +34,10 @@ function DashboardLayout({ children }) {
     return <>{children || <Outlet />}</>;
   }
 
+  return <DashboardLayoutContent>{children}</DashboardLayoutContent>;
+}
+
+function DashboardLayoutContent({ children }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [user, setUser] = useState(() => {
@@ -46,8 +49,7 @@ function DashboardLayout({ children }) {
     }
   });
   const [unreadCount, setUnreadCount] = useState(0);
-  const [notifications, setNotifications] = useState([]);
-  const [showNotifDropdown, setShowNotifDropdown] = useState(false);
+  const [, setNotifications] = useState([]);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [toastNotification, setToastNotification] = useState(null);
   const [streakCount, setStreakCount] = useState(() => {
@@ -83,7 +85,7 @@ function DashboardLayout({ children }) {
         }
         lastCountRef.current = unread;
       }
-    } catch (e) {
+    } catch {
       // Fallback local notifications cache
       const localKey = `dlm_notifications_${userId}`;
       const local = JSON.parse(localStorage.getItem(localKey) || "[]");
@@ -151,21 +153,6 @@ function DashboardLayout({ children }) {
     };
   }, [location.pathname]);
 
-  const handleMarkAsRead = async (notifId) => {
-    try {
-      await markAsRead(notifId, user?.id);
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === notifId ? { ...n, read: true, isRead: true } : n))
-      );
-      setUnreadCount((prev) => Math.max(0, prev - 1));
-    } catch {
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === notifId ? { ...n, read: true, isRead: true } : n))
-      );
-      setUnreadCount((prev) => Math.max(0, prev - 1));
-    }
-  };
-
   const menu = [
     { label: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
     { label: "Course Catalog", path: "/courses", icon: Search },
@@ -181,7 +168,7 @@ function DashboardLayout({ children }) {
     { label: "MCP Inspector", path: "/mcp-explorer", icon: Cpu },
     { label: "Agent Observability", path: "/agent-observability", icon: Workflow },
     { label: "Notifications", path: "/notifications", icon: Bell, badge: unreadCount },
-    { label: "Profile", path: "/profile", icon: UserCircle },
+   /// { label: "Profile", path: "/profile", icon: UserCircle },
   ];
 
   const handleLogout = () => {
@@ -268,7 +255,11 @@ function DashboardLayout({ children }) {
         )}
 
         {/* Navigation Menu */}
-        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+        <nav
+          aria-label="Learner sidebar navigation"
+          tabIndex={0}
+          className="hide-scrollbar flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 py-4 space-y-1"
+        >
           {menu.map((item) => {
             const Icon = item.icon;
             const active = location.pathname === item.path;
@@ -375,7 +366,7 @@ function DashboardLayout({ children }) {
 
         {/* ── Main Content Page ── */}
         <main className="flex-1 bg-slate-50 text-slate-800">
-          {children || <Outlet />}
+          {children || <Outlet key={location.pathname} />}
         </main>
       </div>
 

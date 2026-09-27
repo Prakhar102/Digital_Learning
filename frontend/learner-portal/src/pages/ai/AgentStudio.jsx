@@ -12,7 +12,6 @@ import {
   CheckCircle2,
   RotateCcw,
   Zap,
-  Award,
 } from "lucide-react";
 import DashboardLayout from "../../components/dashboard/DashboardLayout";
 import { AGENT_PERSONAS, runAgentExecution } from "../../services/agentService";
@@ -71,24 +70,24 @@ function AgentStudio() {
 
   const promptShortcuts = {
     assessment: [
-      "Generate a diagnostic quiz on Spring Cloud Gateway & Routing",
-      "Generate an assessment on PostgreSQL Indexing & Connection Pooling",
-      "Create a diagnostic test on Distributed Saga Transactions",
+      "Show assessments",
+      "Find an assessment about cloud",
+      "Find an assessment about databases",
     ],
     skillgap: [
-      "Analyze my skill gap for Cloud Solutions Architect",
-      "What skills do I need for Senior DevOps Engineer?",
-      "Audit my prerequisites for AI & Vector Search Engineering",
+      "Review my LMS learning record",
+      "Show my course progress",
+      "Summarize my assessment attempts",
     ],
     career: [
-      "Build a career pathway for Cloud Architect in 6 months",
-      "How to become a Lead Microservices Engineer?",
-      "Create milestone roadmap for Kubernetes & DevOps Specialist",
+      "Find courses related to cloud",
+      "Find courses related to databases",
+      "Show all available courses",
     ],
     coach: [
-      "Explain the difference between Saga Choreography and Orchestration with an analogy",
-      "How does Eureka heartbeat prevent stale service routing?",
-      "Explain Circuit Breaker half-open state simply",
+      "Search course materials about architecture",
+      "Search for lesson notes about APIs",
+      "Find course material about databases",
     ],
   };
 
@@ -115,14 +114,14 @@ function AgentStudio() {
           <div>
             <div className="flex items-center gap-2 mb-1">
               <span className="px-2 py-0.5 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded uppercase tracking-wider">
-                Phase 3 Context-Aware Agent Studio
+              Live LMS Data Tools
               </span>
             </div>
             <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-              Autonomous Agent Control Center & Tool Calling
+              LMS Learning Data Explorer
             </h1>
             <p className="text-sm text-slate-500 mt-1">
-              Invoke specialized agents with executable function calling for diagnostic generation, skill gap audits, and career roadmapping.
+              Search current course material, published assessments, catalog matches, and the signed-in learner's recorded progress. No language model is connected.
             </p>
           </div>
 
@@ -130,7 +129,7 @@ function AgentStudio() {
             onClick={() => navigate("/knowledge-hub")}
             className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg transition-colors shadow-xs"
           >
-            RAG Knowledge Hub
+            Knowledge Hub
           </button>
         </div>
 
@@ -221,7 +220,7 @@ function AgentStudio() {
               className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors flex items-center gap-2 shrink-0 disabled:opacity-50"
             >
               <Sparkles size={14} />
-              {isRunning ? "Executing Tool..." : "Run Agent"}
+              {isRunning ? "Reading LMS Data..." : "Run Lookup"}
             </button>
           </div>
 
@@ -260,7 +259,7 @@ function AgentStudio() {
                 <div className="flex items-center gap-3 text-xs font-mono text-slate-400">
                   <span>Latency: {executionResult.toolCall.durationMs}ms</span>
                   <span className="px-2 py-0.5 bg-emerald-950 text-emerald-300 border border-emerald-800 rounded font-bold">
-                    HTTP 200 OK
+                    {executionResult.toolCall.status}
                   </span>
                 </div>
               </div>
@@ -271,12 +270,12 @@ function AgentStudio() {
             </div>
 
             {/* ── Tool Result Widget: Generated Assessment Quiz ── */}
-            {executionResult.toolCall.tool === "generate_assessment" && (
+            {executionResult.toolCall.tool === "find_assessments" && executionResult.toolCall.result.generatedQuestions?.length > 0 && (
               <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-6">
                 <div className="flex items-center justify-between pb-4 border-b border-slate-100">
                   <div>
                     <span className="px-2 py-0.5 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded uppercase tracking-wider">
-                      Dynamic Quiz Engine
+                      LMS Assessment
                     </span>
                     <h3 className="text-base font-bold text-slate-900 mt-1">
                       {executionResult.toolCall.result.assessmentTitle}
@@ -339,7 +338,7 @@ function AgentStudio() {
                 </div>
 
                 <div className="flex justify-end pt-2">
-                  {!quizSubmitted ? (
+                  {!quizSubmitted && executionResult.toolCall.result.generatedQuestions.every((question) => question.correctIndex >= 0) ? (
                     <button
                       onClick={() => handleScoreQuiz(executionResult.toolCall.result.generatedQuestions)}
                       disabled={Object.keys(quizAnswers).length === 0}
@@ -347,7 +346,7 @@ function AgentStudio() {
                     >
                       <ClipboardCheck size={14} /> Submit & Score Quiz
                     </button>
-                  ) : (
+                  ) : quizSubmitted ? (
                     <button
                       onClick={() => {
                         setQuizAnswers({});
@@ -357,35 +356,35 @@ function AgentStudio() {
                     >
                       <RotateCcw size={13} /> Retake Diagnostic
                     </button>
+                  ) : (
+                    <p className="text-xs text-slate-500">The LMS question API does not include an answer key, so this assessment cannot be scored here.</p>
                   )}
                 </div>
               </div>
             )}
 
             {/* ── Tool Result Widget: Skill Gap Analysis ── */}
-            {executionResult.toolCall.tool === "analyze_skill_gap" && (
+            {executionResult.toolCall.tool === "review_learning_record" && (
               <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-6">
                 <div className="flex items-center justify-between pb-4 border-b border-slate-100">
                   <div>
                     <span className="px-2 py-0.5 text-[10px] font-bold text-purple-700 bg-purple-50 border border-purple-200 rounded uppercase tracking-wider">
-                      SFIA Competency Audit
+                      Recorded Learning Evidence
                     </span>
                     <h3 className="text-base font-bold text-slate-900 mt-1">
                       Skill Gap Report: {executionResult.toolCall.result.role}
                     </h3>
                   </div>
                   <div className="text-right">
-                    <span className="text-xs text-slate-400">Target Role Readiness</span>
-                    <p className="text-2xl font-bold text-purple-600">
-                      {executionResult.toolCall.result.readinessScore}%
-                    </p>
+                    <span className="text-xs text-slate-400">Assessment attempts</span>
+                    <p className="text-2xl font-bold text-purple-600">{executionResult.toolCall.result.attempts?.length || 0}</p>
                   </div>
                 </div>
 
                 {/* Acquired Skills */}
                 <div className="space-y-3">
                   <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                    Verified Competencies
+                    Completed Courses
                   </h4>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     {executionResult.toolCall.result.acquiredCompetencies.map((c, idx) => (
@@ -403,7 +402,7 @@ function AgentStudio() {
                 {/* Missing Deficiencies */}
                 <div className="space-y-3">
                   <h4 className="text-xs font-bold text-rose-700 uppercase tracking-wider">
-                    Prerequisite Gaps to Close
+                    Courses In Progress
                   </h4>
                   <div className="space-y-2.5">
                     {executionResult.toolCall.result.missingGaps.map((gap, idx) => (
@@ -415,11 +414,11 @@ function AgentStudio() {
                           <div className="flex items-center gap-2">
                             <span className="text-xs font-bold text-slate-900">{gap.skill}</span>
                             <span className="px-2 py-0.2 text-[9px] font-bold rounded bg-rose-100 text-rose-700">
-                              {gap.severity} PRIORITY
+                              {gap.severity}
                             </span>
                           </div>
                           <p className="text-xs text-slate-600 mt-1">
-                            Recommended Track: {gap.recommendation}
+                            Recorded progress: {gap.recommendation}
                           </p>
                         </div>
                         <button
@@ -436,19 +435,19 @@ function AgentStudio() {
             )}
 
             {/* ── Tool Result Widget: Career Roadmap ── */}
-            {executionResult.toolCall.tool === "recommend_career_pathway" && (
+            {executionResult.toolCall.tool === "find_courses" && executionResult.toolCall.result.milestones?.length > 0 && (
               <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-6">
                 <div className="flex items-center justify-between pb-4 border-b border-slate-100">
                   <div>
                     <span className="px-2 py-0.5 text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded uppercase tracking-wider">
-                      Career Progression Architecture
+                      Course Catalog Results
                     </span>
                     <h3 className="text-base font-bold text-slate-900 mt-1">
                       {executionResult.toolCall.result.title}
                     </h3>
                   </div>
                   <span className="px-3 py-1 rounded-lg bg-amber-50 text-amber-800 border border-amber-200 text-xs font-bold">
-                    ⏱️ {executionResult.toolCall.result.estimatedMonths} Months Plan
+                    {executionResult.toolCall.result.milestones.length} catalog matches
                   </span>
                 </div>
 
@@ -465,7 +464,7 @@ function AgentStudio() {
                         <h4 className="text-sm font-bold text-slate-900 mt-1">{m.title}</h4>
 
                         <div className="mt-3 space-y-1">
-                          <p className="text-[11px] font-bold text-slate-500">Core Tracks:</p>
+                          <p className="text-[11px] font-bold text-slate-500">Catalog course:</p>
                           {m.courses.map((c, cIdx) => (
                             <p key={cIdx} className="text-xs text-slate-700 flex items-center gap-1.5">
                               <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
@@ -475,19 +474,19 @@ function AgentStudio() {
                         </div>
                       </div>
 
-                      <div className="pt-3 border-t border-slate-200">
-                        <span className="text-[10px] font-bold text-slate-400">Target Credential:</span>
-                        <p className="text-xs font-bold text-slate-900 flex items-center gap-1 mt-0.5">
-                          <Award size={13} className="text-amber-600" />
-                          {m.milestoneCert}
-                        </p>
-                      </div>
+                      <p className="pt-3 border-t border-slate-200 text-[10px] text-slate-500">Matches use course catalog text only.</p>
                     </div>
                   ))}
                 </div>
               </div>
             )}
           </div>
+        )}
+        {executionResult && (
+          <details className="bg-white border border-slate-200 rounded-xl p-4">
+            <summary className="cursor-pointer text-xs font-semibold text-slate-700">Inspect complete source result</summary>
+            <pre className="mt-3 max-h-96 overflow-auto rounded-lg bg-slate-900 p-4 text-[11px] text-emerald-300">{JSON.stringify(executionResult.toolCall.result, null, 2)}</pre>
+          </details>
         )}
       </div>
     </DashboardLayout>

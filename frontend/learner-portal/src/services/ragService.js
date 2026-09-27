@@ -1,268 +1,194 @@
-import api from "./api.js";
-import { getAllCourses } from "./courseService.js";
+import { getAllCourses, getCourseDetails } from "./courseService.js";
+import { getLearnerRagContext } from "./learnerRagContext.js";
+import { getCurrentUser } from "./userService.js";
 
-// ── Built-in Knowledge Base Base Repository ──
+const DOMAIN_METADATA = [
+  { id: "course-materials", title: "Course Materials", description: "Course, module, and lesson content currently available in the LMS." },
+];
 
-let DYNAMIC_KNOWLEDGE_STORE = {
-  "course-materials": [
-    {
-      id: "cm-101",
-      title: "Spring Cloud Gateway Architecture & Routing Transcripts",
-      category: "Microservices",
-      courseId: 101,
-      source: "Module 2 — Lecture 4 Transcript",
-      content:
-        "Spring Cloud Gateway provides a library for building an API Gateway on top of Spring WebFlux. It uses Route Predicates and Gateway Filters to match incoming HTTP requests and mutate requests/responses before sending them to downstream microservices. Key components include RouteLocator, GatewayFilterFactory, and GlobalFilter for cross-cutting security, token validation, and rate limiting.",
-      tags: ["Gateway", "Routing", "Spring Boot", "WebFlux"],
-      lastUpdated: "2026-09-15",
-    },
-    {
-      id: "cm-102",
-      title: "Distributed Transaction Management with Saga Pattern",
-      category: "System Design",
-      courseId: 102,
-      source: "Module 4 — Architecture Notes & Code Walkthrough",
-      content:
-        "In microservices, traditional 2-phase commit (2PC) does not scale across independent database instances. The Saga pattern manages distributed transactions through a sequence of local transactions coordinated via Choreography (event-driven via Kafka/RabbitMQ) or Orchestration (centralized coordinator service). If a step fails, compensating transactions are executed in reverse order to rollback state.",
-      tags: ["Saga", "Transactions", "Event-Driven", "Kafka"],
-      lastUpdated: "2026-09-18",
-    },
-    {
-      id: "cm-103",
-      title: "Eureka Service Registry & Client-Side Load Balancing",
-      category: "Microservices",
-      courseId: 101,
-      source: "Module 1 — Lecture 2 Slides & Transcript",
-      content:
-        "Netflix Eureka Server acts as a service discovery registry where microservice instances register themselves on startup with heartbeat renewal intervals (default 30 seconds). Clients use Spring Cloud LoadBalancer (formerly Ribbon) to fetch registry metadata and perform round-robin or response-time weighted client-side routing directly between container pods.",
-      tags: ["Eureka", "Discovery", "LoadBalancing"],
-      lastUpdated: "2026-09-10",
-    },
-  ],
+let knowledgeCache = Object.fromEntries(DOMAIN_METADATA.map(({ id }) => [id, []]));
+let lastSyncAt = null;
 
-  "learning-references": [
-    {
-      id: "ref-201",
-      title: "Microservices Design Patterns Cheat-Sheet",
-      category: "Architecture Reference",
-      source: "Enterprise Architectural Standards 2026",
-      content:
-        "Comprehensive index of core distributed patterns: (1) Database-per-Service, (2) CQRS (Command Query Responsibility Segregation) for splitting read/write models, (3) Event Sourcing for immutable state audits, (4) API Composition vs GraphQL federation, (5) Backends for Frontends (BFF) pattern for mobile vs web optimization.",
-      tags: ["Patterns", "CQRS", "EventSourcing", "BFF"],
-      lastUpdated: "2026-08-30",
-    },
-    {
-      id: "ref-202",
-      title: "RESTful API Security & OAuth2 / OpenID Connect Specification",
-      category: "Security Guide",
-      source: "RFC 6749 / OpenID Spec Reference",
-      content:
-        "OAuth2 Authorization Framework enables third-party applications to obtain limited access to an HTTP service. Recommended flow for SPAs and mobile apps is Authorization Code Flow with PKCE (Proof Key for Code Exchange). Access tokens must be signed JWTs containing exp, iss, aud, and scope claims.",
-      tags: ["OAuth2", "JWT", "Security", "PKCE"],
-      lastUpdated: "2026-09-01",
-    },
-  ],
+const asArray = (value) => (Array.isArray(value) ? value : []);
+const textValue = (...values) => values.find((value) => typeof value === "string" && value.trim())?.trim() || "";
 
-  "certification-guides": [
-    {
-      id: "cert-301",
-      title: "Certified Cloud Microservices Architect (CCMA) Blueprint",
-      category: "Certification Prep",
-      source: "DLM Academic Certification Board Guide",
-      content:
-        "Exam Domains Breakdown: Domain 1: Cloud Architecture & Domain-Driven Design (30%), Domain 2: Service Discovery, Routing & API Gateways (25%), Domain 3: Distributed Data Management & Saga (25%), Domain 4: Observability, Metrics & Telemetry (20%). Passing threshold: 75% on 50 scenario-based questions. Time limit: 90 minutes.",
-      tags: ["Certification", "CCMA", "ExamBlueprint", "StudyGuide"],
-      lastUpdated: "2026-09-12",
-    },
-    {
-      id: "cert-302",
-      title: "Spring Professional Developer Certification Exam Milestones",
-      category: "Certification Prep",
-      source: "Official Spring Framework Curriculum Roadmap",
-      content:
-        "Milestone Checklist: Week 1: Spring Core Container, Dependency Injection & Bean Lifecycle. Week 2: Spring Boot Auto-configuration, Actuator & Testing. Week 3: Spring Data JPA, Hibernate caching & transaction management. Week 4: Spring Security, JWT filters & Method Security.",
-      tags: ["Spring", "DeveloperExam", "Roadmap", "Milestones"],
-      lastUpdated: "2026-09-14",
-    },
-  ],
-
-  "skill-frameworks": [
-    {
-      id: "sk-401",
-      title: "SFIA Framework: Software Engineering Competency Matrix",
-      category: "Skill Framework",
-      source: "Skills Framework for the Information Age (SFIA 8)",
-      content:
-        "Proficiency Levels: Level 1 (Follow): Performs routine tasks with guidance. Level 2 (Assist): Understands basic microservice principles. Level 3 (Apply): Develops and tests REST APIs independently. Level 4 (Enable): Designs complex distributed workflows and mentors peers. Level 5 (Ensure/Advise): Architectural leadership, tech stack evaluation, and high-level system governance.",
-      tags: ["SFIA", "Competencies", "Levels", "CareerGrowth"],
-      lastUpdated: "2026-08-20",
-    },
-    {
-      id: "sk-402",
-      title: "Cloud & DevOps Engineer Role Skill Taxonomy (O*NET Aligned)",
-      category: "Skill Framework",
-      source: "O*NET Digital Technology Classification",
-      content:
-        "Core Skill Clusters: (1) Infrastructure as Code: Terraform, Ansible; (2) Container Orchestration: Docker, Kubernetes, Helm; (3) CI/CD Automation: GitHub Actions, Jenkins, ArgoCD; (4) Observability: OpenTelemetry, Prometheus, Distributed Tracing; (5) Security: Secrets management with HashiCorp Vault.",
-      tags: ["DevOps", "Taxonomy", "ONET", "SkillTree"],
-      lastUpdated: "2026-09-05",
-    },
-  ],
-};
-
-// ── Dynamic Live Backend Synchronization ──
 export const syncLiveKnowledgeFromBackend = async () => {
-  try {
-    const liveCourses = await getAllCourses();
-    if (Array.isArray(liveCourses) && liveCourses.length > 0) {
-      liveCourses.forEach((c) => {
-        const existingIdx = DYNAMIC_KNOWLEDGE_STORE["course-materials"].findIndex(
-          (m) => m.id === `course-${c.id}`
-        );
-        const entry = {
-          id: `course-${c.id}`,
-          title: `${c.title} — Lecture Syllabus & Notes`,
-          category: c.category || "Software Engineering",
-          courseId: c.id,
-          source: `Course #${c.id} Live Catalog Entry`,
-          content: c.description || `Comprehensive syllabus, interactive lessons, and lab material for ${c.title}.`,
-          tags: [c.category || "Course", "LiveCatalog", c.level || "Track"],
-          lastUpdated: new Date().toISOString().split("T")[0],
-        };
+  const courses = asArray(await getAllCourses());
+  const courseDetails = await Promise.all(courses.map(async (course) => {
+    try {
+      return await getCourseDetails(course.id);
+    } catch {
+      return course;
+    }
+  }));
 
-        if (existingIdx >= 0) {
-          DYNAMIC_KNOWLEDGE_STORE["course-materials"][existingIdx] = entry;
-        } else {
-          DYNAMIC_KNOWLEDGE_STORE["course-materials"].unshift(entry);
-        }
+  const documents = [];
+  courseDetails.forEach((course) => {
+    const courseTitle = textValue(course.title) || `Course #${course.id}`;
+    const courseDescription = textValue(course.description, course.summary, course.content);
+    const category = typeof course.category === "string" ? course.category : course.category?.name;
+
+    if (courseDescription) {
+      documents.push({
+        id: `course-${course.id}`,
+        title: courseTitle,
+        category: category || "Course",
+        courseId: course.id,
+        source: `LMS course catalog · ${courseTitle}`,
+        content: courseDescription,
+        tags: [category, course.level].filter(Boolean),
+        lastUpdated: course.updatedAt || course.createdAt || null,
+        domain: "course-materials",
       });
     }
-  } catch (err) {
-    // Graceful fallback
-  }
-};
 
-// ── Search & Retrieval Engine with Real-Time Data ──
-export const searchKnowledgeBase = async ({
-  query,
-  domain = "all",
-  courseId = null,
-  limit = 6,
-}) => {
-  await syncLiveKnowledgeFromBackend();
+    asArray(course.modules).forEach((module) => {
+      const moduleTitle = textValue(module.title, module.name);
+      const moduleContent = textValue(module.description, module.summary, module.content, module.notes);
+      if (moduleTitle || moduleContent) {
+        documents.push({
+          id: `module-${module.id}`,
+          title: moduleTitle || `Module in ${courseTitle}`,
+          category: category || "Course Module",
+          courseId: course.id,
+          source: `LMS course content · ${courseTitle}`,
+          content: [moduleTitle, moduleContent].filter(Boolean).join("\n\n"),
+          tags: [category, courseTitle].filter(Boolean),
+          lastUpdated: module.updatedAt || module.createdAt || null,
+          domain: "course-materials",
+        });
+      }
 
-  try {
-    const res = await api.post("/api/rag/search", { query, domain, courseId, limit });
-    if (res?.data && Array.isArray(res.data) && res.data.length > 0) {
-      return res.data;
-    }
-  } catch {
-    // Client-side ranker
-  }
-
-  const queryTerms = query.toLowerCase().split(/\s+/).filter(Boolean);
-  let candidates = [];
-
-  const domainsToSearch =
-    domain === "all"
-      ? Object.keys(DYNAMIC_KNOWLEDGE_STORE)
-      : [domain];
-
-  for (const d of domainsToSearch) {
-    const items = DYNAMIC_KNOWLEDGE_STORE[d] || [];
-    items.forEach((item) => {
-      candidates.push({ ...item, domain: d });
+      asArray(module.lessons).forEach((lesson) => {
+        const lessonTitle = textValue(lesson.title, lesson.name);
+        const lessonContent = textValue(lesson.description, lesson.summary, lesson.content, lesson.notes, lesson.transcript);
+        if (!lessonTitle && !lessonContent) return;
+        documents.push({
+          id: `lesson-${lesson.id}`,
+          title: lessonTitle || `Lesson in ${moduleTitle || courseTitle}`,
+          category: category || "Course Lesson",
+          courseId: course.id,
+          source: `LMS lesson · ${courseTitle}${moduleTitle ? ` · ${moduleTitle}` : ""}`,
+          content: [lessonTitle, lessonContent].filter(Boolean).join("\n\n"),
+          tags: [category, courseTitle, moduleTitle].filter(Boolean),
+          lastUpdated: lesson.updatedAt || lesson.createdAt || null,
+          domain: "course-materials",
+        });
+      });
     });
-  }
-
-  if (courseId) {
-    candidates = candidates.filter(
-      (c) => !c.courseId || String(c.courseId) === String(courseId)
-    );
-  }
-
-  const scored = candidates.map((item) => {
-    let score = 0;
-    const textToMatch = `${item.title} ${item.content} ${item.tags.join(" ")} ${item.category}`.toLowerCase();
-
-    queryTerms.forEach((term) => {
-      if (item.title.toLowerCase().includes(term)) score += 3.5;
-      if (item.tags.some((t) => t.toLowerCase().includes(term))) score += 2.5;
-      if (item.content.toLowerCase().includes(term)) score += 1.5;
-      if (item.category.toLowerCase().includes(term)) score += 1.0;
-    });
-
-    const confidence = Math.min(99, Math.max(72, Math.round(70 + score * 4)));
-    const sentences = item.content.split(". ");
-    const bestSentence =
-      sentences.find((s) => queryTerms.some((t) => s.toLowerCase().includes(t))) ||
-      sentences[0] ||
-      item.content;
-
-    return {
-      ...item,
-      confidenceScore: confidence,
-      matchedExcerpt: bestSentence,
-      citation: `${item.title} (${item.source})`,
-    };
   });
 
-  scored.sort((a, b) => b.confidenceScore - a.confidenceScore);
-  return scored.slice(0, limit);
+  knowledgeCache = Object.fromEntries(DOMAIN_METADATA.map(({ id }) => [
+    id,
+    id === "course-materials" ? documents : [],
+  ]));
+  lastSyncAt = new Date().toISOString();
+  return documents;
 };
 
-export const getKnowledgeByDomain = (domainKey) => {
-  return DYNAMIC_KNOWLEDGE_STORE[domainKey] || [];
+export const searchKnowledgeBase = async ({ query, domain = "all", courseId = null, limit = 6 }) => {
+  const documents = await syncLiveKnowledgeFromBackend();
+  const queryTerms = String(query || "").toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((term) => term.length > 1);
+  if (!queryTerms.length) return [];
+
+  const candidates = documents.filter((document) =>
+    (domain === "all" || document.domain === domain)
+    && (!courseId || String(document.courseId) === String(courseId))
+  );
+
+  return candidates.map((document) => {
+    const searchableText = `${document.title} ${document.content} ${document.tags.join(" ")} ${document.category}`.toLowerCase();
+    const matchedTerms = queryTerms.filter((term) => searchableText.includes(term));
+    const score = matchedTerms.reduce((total, term) => {
+      const titleBoost = document.title.toLowerCase().includes(term) ? 3 : 0;
+      const tagBoost = document.tags.some((tag) => tag.toLowerCase().includes(term)) ? 2 : 0;
+      return total + 1 + titleBoost + tagBoost;
+    }, 0);
+    const excerpt = document.content.split(/(?<=[.!?])\s+/).find((sentence) =>
+      queryTerms.some((term) => sentence.toLowerCase().includes(term))
+    ) || document.content.slice(0, 320);
+
+    return {
+      ...document,
+      searchScore: score,
+      matchedTermCount: matchedTerms.length,
+      matchedExcerpt: excerpt,
+      citation: `${document.title} (${document.source})`,
+    };
+  }).filter((document) => document.matchedTermCount > 0)
+    .sort((a, b) => b.searchScore - a.searchScore)
+    .slice(0, limit);
 };
 
-export const getAllKnowledgeDomains = () => {
-  return [
-    {
-      id: "course-materials",
-      title: "Course Material Repository",
-      description: "Indexed lecture transcripts, slide decks, module notes, and live catalog courses.",
-      count: DYNAMIC_KNOWLEDGE_STORE["course-materials"].length,
-      icon: "BookOpen",
-    },
-    {
-      id: "learning-references",
-      title: "Learning References",
-      description: "Architecture patterns, API reference manuals, cheat-sheets, and RFC specs.",
-      count: DYNAMIC_KNOWLEDGE_STORE["learning-references"].length,
-      icon: "FileText",
-    },
-    {
-      id: "certification-guides",
-      title: "Certification Guides",
-      description: "Exam blueprints, competency domain weightages, milestones, and preparation kits.",
-      count: DYNAMIC_KNOWLEDGE_STORE["certification-guides"].length,
-      icon: "Award",
-    },
-    {
-      id: "skill-frameworks",
-      title: "Skill Framework Knowledge Base",
-      description: "SFIA & O*NET competency models, proficiency ladders, and role taxonomies.",
-      count: DYNAMIC_KNOWLEDGE_STORE["skill-frameworks"].length,
-      icon: "Brain",
-    },
-  ];
+export const getKnowledgeByDomain = (domainKey) => knowledgeCache[domainKey] || [];
+
+export const getAllKnowledgeDomains = () => DOMAIN_METADATA.map((domain) => ({
+  ...domain,
+  count: knowledgeCache[domain.id]?.length || 0,
+}));
+
+const personalQuery = (query) => {
+  const normalized = String(query || "").toLowerCase();
+  return /\b(my|mine|me|i|i'm|i am|myself|mera|meri|mere|mujhe|maine|main|mai|apna|apni|apne|kitne|kitni|kitna|hu|hoon|hun)\b/.test(normalized)
+    || normalized.includes("my ")
+    || normalized.includes("about me");
 };
 
-export const askRAGMentor = async ({ query, courseId = null, domain = "all" }) => {
-  const sources = await searchKnowledgeBase({ query, domain, courseId, limit: 3 });
+const getPersonalAnswer = (query, context) => {
+  const normalized = query.toLowerCase();
+  if (!personalQuery(normalized)) return null;
 
-  let synthesis = "";
-  if (sources.length > 0) {
-    const primary = sources[0];
-    synthesis = `Based on verified platform references in **${primary.source}**:\n\n${primary.content}\n\n**Key Takeaway**: ${primary.matchedExcerpt}`;
-  } else {
-    synthesis = `I searched the live DLM knowledge repositories for "${query}". Here is the recommended architectural standard:\n\nEnsure distributed microservices adhere to loose coupling, bounded contexts, and fault-tolerant circuit breaking patterns.`;
-  }
+  const requested = [];
+  if (/\b(name|email|profile|who am i|naam|kaun)\b/.test(normalized)) requested.push("Your Profile");
+  if (/\b(course|courses|enroll|enrolled|ongoing|completed|complete|progress|padh)\b/.test(normalized)) requested.push("Your Courses");
+  if (/\b(certificate|certificates|certification|certifications)\b/.test(normalized)) requested.push("Your Certificates");
+  if (/\b(assessment|assessments|quiz|quizzes|test|tests|pass|passed|fail|failed|score|attempt|attempts|exam|exams)\b/.test(normalized)) requested.push("Your Assessment Attempts");
+  if (/\b(assignment|assignments|due|submission|submissions|homework)\b/.test(normalized)) requested.push("Your Course Assignments");
 
+  const selected = requested.length
+    ? context.sources.filter((item) => requested.includes(item.title))
+    : context.sources;
+  const totals = context.totals;
+  const countSummary = requested.includes("Your Courses")
+    ? `Courses: ${totals.enrolledCourses} enrolled, ${totals.completedCourses} completed, ${totals.ongoingCourses} ongoing.`
+    : requested.includes("Your Assessment Attempts")
+      ? `Assessment attempts: ${totals.assessmentAttempts} total, ${totals.passedAssessments} passed, ${totals.failedAssessments} failed.`
+      : requested.includes("Your Certificates")
+        ? `Certificates: ${totals.certificates}.`
+        : requested.includes("Your Course Assignments")
+          ? `Assignments across your enrolled courses: ${totals.assignments}.`
+          : "";
   return {
-    answer: synthesis,
-    sources,
-    generatedAt: new Date().toISOString(),
-    tokensUsed: Math.floor(Math.random() * 80) + 220,
+    answer: [countSummary, ...selected.map((item) => `**${item.title}**\n${item.content}`)].filter(Boolean).join("\n\n"),
+    sources: selected,
   };
 };
+
+export const askRAGMentor = async ({ query, courseId = null, domain = "all", learnerId = null, learner = null }) => {
+  if (personalQuery(query)) {
+    let activeLearner = learner;
+    let activeLearnerId = learnerId;
+    if (activeLearnerId === null || activeLearnerId === undefined) {
+      activeLearner = activeLearner || await getCurrentUser();
+      activeLearnerId = activeLearner?.id;
+    }
+    if (activeLearnerId !== null && activeLearnerId !== undefined) {
+      const context = await getLearnerRagContext(activeLearnerId, activeLearner);
+      const answer = getPersonalAnswer(query, context);
+      if (answer) return { ...answer, generatedAt: new Date().toISOString() };
+    }
+  }
+
+  const sources = await searchKnowledgeBase({ query, domain, courseId, limit: 3 });
+  const answer = sources.length
+    ? `I found relevant LMS course material in **${sources[0].source}**.\n\n${sources.map((source) => source.matchedExcerpt).join("\n\n")}`
+    : "I couldn't find matching material in the course content currently available in the LMS. Add course descriptions, module notes, or lesson content to make this topic searchable.";
+
+  return {
+    answer,
+    sources,
+    generatedAt: new Date().toISOString(),
+  };
+};
+
+export const getKnowledgeLastSyncAt = () => lastSyncAt;

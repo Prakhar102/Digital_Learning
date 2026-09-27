@@ -9,7 +9,7 @@ import {
 import AdminLayout from "../../components/admin/AdminLayout";
 
 function AdminAnalytics() {
-  const [services, setServices] = useState([
+  const [services] = useState([
     { name: "API Gateway", port: 8080, status: "UP", latency: "12ms" },
     { name: "Identity Service", port: 8081, status: "UP", latency: "18ms" },
     { name: "Catalog Service", port: 8082, status: "UP", latency: "15ms" },

@@ -79,7 +79,7 @@ export const getStoredAttempts = () => {
       return {
         ...a,
         learnerName: resolvedName,
-        learnerId: a.learnerId || a.userId || 1,
+        learnerId: a.learnerId || a.userId || null,
       };
     });
   } catch {
@@ -115,9 +115,7 @@ export const recordAssessmentSubmission = (attemptData) => {
 
     const updated = [
       newAttempt,
-      ...attempts.filter(
-        (a) => !(String(a.assessmentId) === String(newAttempt.assessmentId) && String(a.learnerId) === String(newAttempt.learnerId))
-      ),
+      ...attempts.filter((a) => String(a.id) !== String(newAttempt.id)),
     ];
     localStorage.setItem(ASSESSMENT_ATTEMPTS_KEY, JSON.stringify(updated));
 
@@ -143,8 +141,7 @@ export const getLearnerAssessmentAttempts = (learnerId) => {
   return attempts.filter(
     (a) =>
       String(a.learnerId) === String(learnerId) ||
-      String(a.userId) === String(learnerId) ||
-      !a.learnerId
+      String(a.userId) === String(learnerId)
   );
 };
 
@@ -277,7 +274,11 @@ export const getAssessmentQuestions = getQuestionsByAssessment;
 export const submitAttempt = async (data) => {
   recordAssessmentSubmission(data);
   try {
-    const response = await api.post("/api/attempts", data);
+    const response = await api.post("/api/attempts", {
+      userId: data.userId || data.learnerId,
+      assessmentId: data.assessmentId,
+      answers: data.answers || {},
+    });
     return response.data;
   } catch {
     return { success: true, ...data };
@@ -289,9 +290,40 @@ export const getUserAttempts = async (userId) => {
   try {
     const response = await api.get(`/api/attempts/user/${userId}`);
     if (Array.isArray(response.data) && response.data.length > 0) {
-      const localIds = new Set(localAttempts.map((a) => String(a.id || a.assessmentId)));
-      const extraBackend = response.data.filter((a) => !localIds.has(String(a.id || a.assessmentId)));
-      return [...localAttempts, ...extraBackend];
+      const backendAttempts = response.data
+        .filter((attempt) => String(attempt.userId ?? attempt.learnerId) === String(userId))
+        .map((attempt) => {
+          const matchingLocal = localAttempts.find((local) => {
+            const sameAssessment = String(local.assessmentId) === String(attempt.assessmentId);
+            const sameResult = String(local.score ?? local.percentage) === String(attempt.score ?? attempt.percentage)
+              && String(local.passed) === String(attempt.passed);
+            const backendTime = new Date(attempt.attemptedAt || attempt.submittedAt || 0).getTime();
+            const localTime = new Date(local.submittedAt || local.completedAt || 0).getTime();
+            return sameAssessment && sameResult && backendTime && localTime
+              && Math.abs(backendTime - localTime) < 2 * 60 * 1000;
+          });
+          return {
+            ...matchingLocal,
+            ...attempt,
+            learnerId: userId,
+            submittedAt: attempt.submittedAt || attempt.attemptedAt || matchingLocal?.submittedAt,
+          };
+        });
+
+      const backendAssessmentIds = new Set(backendAttempts.map((attempt) => String(attempt.assessmentId)));
+      const localOnlyAttempts = localAttempts.filter((local) => {
+        if (!backendAssessmentIds.has(String(local.assessmentId))) return true;
+        // Keep offline attempts that are not the same attempt returned by the server.
+        return !backendAttempts.some((server) =>
+          String(server.assessmentId) === String(local.assessmentId)
+          && String(server.score ?? server.percentage) === String(local.score ?? local.percentage)
+          && String(server.passed) === String(local.passed)
+          && (!server.submittedAt || !local.submittedAt
+            || Math.abs(new Date(server.submittedAt).getTime() - new Date(local.submittedAt).getTime()) < 2 * 60 * 1000)
+        );
+      });
+
+      return [...backendAttempts, ...localOnlyAttempts];
     }
   } catch {}
   return localAttempts;

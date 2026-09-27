@@ -3,6 +3,12 @@ import api from "./api";
 const ASSIGNMENTS_KEY = "dlm_created_assignments_store";
 const SUBMISSIONS_KEY = "dlm_submissions_store";
 
+export const isAssignmentPastDue = (assignment, now = Date.now()) => {
+  if (!assignment?.dueDate) return false;
+  const deadline = new Date(assignment.dueDate).getTime();
+  return Number.isFinite(deadline) && now >= deadline;
+};
+
 export const getStoredLocalAssignments = () => {
   try {
     const raw = localStorage.getItem(ASSIGNMENTS_KEY);
@@ -136,6 +142,8 @@ export const submitAssignment = async (submissionData) => {
     }
   } catch (err) {
     console.warn("Backend /api/submissions error, saving submission locally:", err?.message || err);
+    // Never let the offline fallback bypass a server-side deadline or validation rejection.
+    if (err?.response?.status >= 400 && err.response.status < 500) throw err;
     saved = {
       ...submissionData,
       id: Date.now(),

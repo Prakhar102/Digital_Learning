@@ -3,13 +3,16 @@ package com.dlm.assignment.service.impl;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.dlm.assignment.dto.GradeRequest;
 import com.dlm.assignment.dto.SubmissionRequest;
 import com.dlm.assignment.dto.SubmissionResponse;
 import com.dlm.assignment.entity.Submission;
 import com.dlm.assignment.entity.SubmissionStatus;
+import com.dlm.assignment.repository.AssignmentRepository;
 import com.dlm.assignment.repository.SubmissionRepository;
 import com.dlm.assignment.service.SubmissionService;
 
@@ -21,10 +24,17 @@ public class SubmissionServiceImpl
         implements SubmissionService {
 
     private final SubmissionRepository submissionRepository;
+    private final AssignmentRepository assignmentRepository;
 
     @Override
     public SubmissionResponse submitAssignment(
             SubmissionRequest request) {
+
+        var assignment = assignmentRepository.findById(request.getAssignmentId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Assignment not found."));
+        if (assignment.getDueDate() != null && !LocalDateTime.now().isBefore(assignment.getDueDate())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "The assignment deadline has passed. Submissions and resubmissions are closed.");
+        }
 
         Submission submission =
                 Submission.builder()

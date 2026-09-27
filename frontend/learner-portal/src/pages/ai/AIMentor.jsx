@@ -51,7 +51,7 @@ function AIMentor() {
         {
           id: "welcome-1",
           sender: "ai",
-          text: `Hello ${u.value?.fullName || "Scholar"}! I am your **Digital Learning Mentor (RAG AI Assistant)**.\n\nI can retrieve grounded answers with direct citations across our **Course Material Repository**, **Learning References**, **Certification Guides**, and **Skill Framework Knowledge Base**. How can I assist your study today?`,
+          text: `Hello ${u.value?.fullName || "Learner"}! I can retrieve matching text from course content and look up records for the signed-in learner. This workspace has no connected language model, so answers are limited to source records and excerpts. What would you like to search?`,
           citations: [],
           timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         },
@@ -86,6 +86,8 @@ function AIMentor() {
         query: queryToSend,
         domain: selectedDomain,
         courseId: selectedCourseId || null,
+        learnerId: currentUser?.id,
+        learner: currentUser,
       });
 
       const aiMsg = {
@@ -93,7 +95,6 @@ function AIMentor() {
         sender: "ai",
         text: result.answer,
         citations: result.sources || [],
-        tokensUsed: result.tokensUsed || 250,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       };
 
@@ -105,7 +106,7 @@ function AIMentor() {
         {
           id: `ai-${Date.now()}`,
           sender: "ai",
-          text: "I encountered a transient retrieval error querying the knowledge vector database. Please try again.",
+          text: `The LMS retrieval request failed: ${err?.message || "The data source is unavailable."}`,
           citations: [],
           timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         },
@@ -115,12 +116,7 @@ function AIMentor() {
     }
   };
 
-  const samplePrompts = [
-    { title: "Explain Saga Pattern vs 2PC", domain: "course-materials" },
-    { title: "What are the CCMA certification exam domains?", domain: "certification-guides" },
-    { title: "How does Eureka client load balancing work?", domain: "course-materials" },
-    { title: "What SFIA competency levels exist for Software Engineers?", domain: "skill-frameworks" },
-  ];
+  const samplePrompts = courses.slice(0, 4).map((course) => ({ title: course.title, query: course.title, domain: "course-materials" }));
 
   return (
     <DashboardLayout>
@@ -130,11 +126,11 @@ function AIMentor() {
           <div>
             <div className="flex items-center gap-2">
               <span className="px-2 py-0.5 text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-200 rounded uppercase tracking-wider">
-                Phase 2 RAG Knowledge Assistant
+                LMS Course Content Search
               </span>
             </div>
             <h1 className="text-xl font-bold tracking-tight text-slate-900 mt-1">
-              AI Learning Mentor & Context Retriever
+              Course Content and Learner Record Lookup
             </h1>
           </div>
 
@@ -145,11 +141,8 @@ function AIMentor() {
               onChange={(e) => setSelectedDomain(e.target.value)}
               className="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-800 focus:outline-none focus:border-blue-600 shadow-xs"
             >
-              <option value="all">All 4 Knowledge Domains</option>
-              <option value="course-materials">Course Materials Only</option>
-              <option value="learning-references">Learning References Only</option>
-              <option value="certification-guides">Certification Guides Only</option>
-              <option value="skill-frameworks">Skill Frameworks Only</option>
+              <option value="all">All available LMS content</option>
+              {domains.map((domain) => <option key={domain.id} value={domain.id}>{domain.title}</option>)}
             </select>
 
             <select
@@ -197,7 +190,7 @@ function AIMentor() {
                     <div className="pt-3 border-t border-slate-200/70 space-y-2">
                       <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
                         <CheckCircle2 size={12} className="text-emerald-600" />
-                        Verified Grounded Sources ({m.citations.length})
+                        LMS Sources ({m.citations.length})
                       </p>
                       <div className="space-y-1.5">
                         {m.citations.map((src, sIdx) => (
@@ -210,7 +203,7 @@ function AIMentor() {
                               <p className="text-[10px] text-slate-500">{src.source}</p>
                             </div>
                             <span className="px-1.5 py-0.5 text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded shrink-0">
-                              {src.confidenceScore || 95}% Match
+                              {src.matchedTermCount ? `${src.matchedTermCount} query terms matched` : "LMS record"}
                             </span>
                           </div>
                         ))}
@@ -243,7 +236,7 @@ function AIMentor() {
               </div>
               <div className="bg-slate-50 border border-slate-200/80 rounded-2xl rounded-tl-xs p-4 flex items-center gap-2 text-xs text-slate-500">
                 <Sparkles size={14} className="text-blue-600 animate-spin" />
-                Retrieving vector embeddings & synthesizing verified answer...
+                Searching current LMS course and learner records...
               </div>
             </div>
           )}
@@ -285,7 +278,7 @@ function AIMentor() {
             className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors disabled:opacity-50 flex items-center gap-2 shrink-0"
           >
             <Send size={14} />
-            Ask RAG Mentor
+            Search LMS Content
           </button>
         </form>
       </div>

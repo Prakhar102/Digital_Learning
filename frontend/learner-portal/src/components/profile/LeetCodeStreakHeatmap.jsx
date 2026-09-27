@@ -39,7 +39,11 @@ export default function LeetCodeStreakHeatmap({ user, enrollments = [] }) {
     }
   };
 
-  const monthsHeader = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const monthLabels = weeks.map((week, index) => {
+    const firstOfMonth = week.find((day) => day.date.endsWith("-01"));
+    // Label the first partial month at the start of the rolling year too.
+    return firstOfMonth?.month || (index === 0 ? week[0]?.month : "");
+  });
 
   return (
     <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-6">
@@ -95,8 +99,10 @@ export default function LeetCodeStreakHeatmap({ user, enrollments = [] }) {
       <div className="space-y-2 overflow-x-auto pb-2">
         {/* Month Labels */}
         <div className="flex text-[10px] text-slate-400 font-mono pl-7 justify-between pr-2 min-w-[680px]">
-          {monthsHeader.map((m) => (
-            <span key={m}>{m}</span>
+          {monthLabels.map((month, weekIdx) => (
+            <span key={weekIdx} className="w-2.5 shrink-0">
+              {month}
+            </span>
           ))}
         </div>
 

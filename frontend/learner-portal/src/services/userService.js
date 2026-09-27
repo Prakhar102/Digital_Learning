@@ -26,12 +26,7 @@ export const getCurrentUser = async () => {
     } catch { }
   }
 
-  return {
-    id: 1,
-    fullName: "Swati Kumari",
-    email: "instructor@dlm.edu",
-    role: "ROLE_INSTRUCTOR",
-  };
+  return null;
 };
 
 export const getDashboardStats = async () => {

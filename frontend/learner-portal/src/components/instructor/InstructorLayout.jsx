@@ -323,7 +323,11 @@ function InstructorLayout({ children }) {
         )}
 
         {/* Menu */}
-        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+        <nav
+          aria-label="Instructor sidebar navigation"
+          tabIndex={0}
+          className="hide-scrollbar flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 py-4 space-y-1"
+        >
           {menu.map((item) => {
             const Icon = item.icon;
             const active = isRouteActive(item.path);

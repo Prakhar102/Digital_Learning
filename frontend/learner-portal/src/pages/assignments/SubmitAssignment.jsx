@@ -15,7 +15,7 @@ import {
   FileCheck,
 } from "lucide-react";
 import DashboardLayout from "../../components/dashboard/DashboardLayout";
-import { submitAssignment, getAssignmentById } from "../../services/assignmentService";
+import { submitAssignment, getAssignmentById, isAssignmentPastDue } from "../../services/assignmentService";
 import { getCurrentUser } from "../../services/userService";
 import { sendNotification, notifyInstructor } from "../../services/notificationService";
 
@@ -36,29 +36,34 @@ function SubmitAssignment() {
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [assignmentLoading, setAssignmentLoading] = useState(true);
+  const [now, setNow] = useState(Date.now());
 
   useEffect(() => {
     loadData();
   }, [assignmentId]);
 
+  useEffect(() => {
+    const timerId = window.setInterval(() => setNow(Date.now()), 15000);
+    return () => window.clearInterval(timerId);
+  }, []);
+
   async function loadData() {
+    setAssignmentLoading(true);
+    setAssignmentInfo(null);
     try {
       const user = await getCurrentUser();
       setCurrentUser(user);
 
-      if (assignmentId) {
-        try {
-          const assign = await getAssignmentById(assignmentId);
-          setAssignmentInfo(assign);
-        } catch {
-          // fallback if endpoint differs
-          setAssignmentInfo({ id: assignmentId, title: `Assignment #${assignmentId}`, courseId: 1 });
-        }
-      }
+      if (assignmentId) setAssignmentInfo(await getAssignmentById(assignmentId));
     } catch (e) {
       console.error(e);
+    } finally {
+      setAssignmentLoading(false);
     }
   }
+
+  const deadlinePassed = isAssignmentPastDue(assignmentInfo, now);
 
   const handleFileUpload = (e) => {
     const file = e.target.files?.[0];
@@ -128,6 +133,11 @@ function SubmitAssignment() {
       return;
     }
 
+    if (!assignmentInfo || isAssignmentPastDue(assignmentInfo)) {
+      setErrorMsg("This assignment deadline has passed or the assignment could not be loaded. Submissions are closed.");
+      return;
+    }
+
     if (!targetUrl) {
       setErrorMsg(
         submissionType === "file"
@@ -180,7 +190,7 @@ function SubmitAssignment() {
       }, 1500);
     } catch (err) {
       console.error("Assignment submission error:", err);
-      setErrorMsg("Failed to submit assignment. Please try again.");
+      setErrorMsg(err?.response?.data?.message || err?.response?.data?.detail || err?.message || "Failed to submit assignment. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -295,7 +305,17 @@ function SubmitAssignment() {
           )}
         </div>
 
-        {success ? (
+        {assignmentLoading ? (
+          <div className="p-12 text-center bg-white border border-slate-200 rounded-xl text-sm text-slate-500">Loading assignment…</div>
+        ) : !assignmentInfo ? (
+          <div className="p-8 bg-white border border-rose-200 rounded-xl text-sm text-rose-700">Assignment details are unavailable. Submission is disabled.</div>
+        ) : deadlinePassed ? (
+          <div className="p-8 bg-white border border-rose-200 rounded-xl space-y-2">
+            <h2 className="text-base font-bold text-rose-700">Submission deadline has passed</h2>
+            <p className="text-sm text-slate-600">This assignment is closed. New submissions and resubmissions are no longer accepted.</p>
+            <button type="button" onClick={() => navigate("/my-submissions")} className="mt-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg">Back to Assignments</button>
+          </div>
+        ) : success ? (
           <div className="p-10 text-center bg-white border border-emerald-200 rounded-xl space-y-3 shadow-xs">
             <div className="h-12 w-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
               <CheckCircle size={28} />
@@ -481,6 +501,9 @@ function SubmitAssignment() {
               <button
                 type="submit"
                 disabled={
+                  assignmentLoading ||
+                  !assignmentInfo ||
+                  deadlinePassed ||
                   submitting ||
                   (submissionType === "file" && !solutionFile) ||
                   (submissionType === "link" && !fileUrl.trim())

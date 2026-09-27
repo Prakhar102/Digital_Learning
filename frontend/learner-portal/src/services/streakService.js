@@ -7,6 +7,13 @@
 
 const ACTIVITY_LOG_KEY = "dlm_learner_activity_log";
 
+const toLocalDateKey = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
 // Get user activity log dictionary: { [userId]: { [YYYY-MM-DD]: count } }
 export const getActivityLogs = () => {
   try {
@@ -25,7 +32,7 @@ export const recordUserActivity = (userId, type = "LEARNING_ACTION", metadata = 
     const uKey = String(userId);
     if (!logs[uKey]) logs[uKey] = {};
 
-    const todayStr = new Date().toISOString().split("T")[0];
+    const todayStr = toLocalDateKey(new Date());
     logs[uKey][todayStr] = (logs[uKey][todayStr] || 0) + 1;
 
     localStorage.setItem(ACTIVITY_LOG_KEY, JSON.stringify(logs));
@@ -48,22 +55,29 @@ export const calculateLearnerStreak = (user, enrollments = []) => {
   const userLogs = logs[uKey] || {};
 
   const today = new Date();
+  today.setHours(0, 0, 0, 0);
   const days = [];
-  const totalDays = 52 * 7; // 364 days
+  const totalWeeks = 52;
+  const totalDays = totalWeeks * 7;
+  const currentWeekStart = new Date(today);
+  // Anchor columns on Monday so every column represents one calendar week.
+  currentWeekStart.setDate(today.getDate() - ((today.getDay() + 6) % 7));
+  const rangeStart = new Date(currentWeekStart);
+  rangeStart.setDate(currentWeekStart.getDate() - (totalWeeks - 1) * 7);
 
   let activeDaysCount = 0;
   let currentStreak = 0;
   let maxStreak = 0;
   let tempStreak = 0;
 
-  // Generate each day from 364 days ago up to today
-  for (let i = totalDays - 1; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(today.getDate() - i);
+  // Generate 52 Monday-to-Sunday columns ending with the current week.
+  for (let i = 0; i < totalDays; i++) {
+    const d = new Date(rangeStart);
+    d.setDate(rangeStart.getDate() + i);
 
     const dayOfWeek = d.getDay(); // 0: Sun, 6: Sat
     const month = d.toLocaleString("default", { month: "short" });
-    const dateStr = d.toISOString().split("T")[0];
+    const dateStr = toLocalDateKey(d);
 
     // Real recorded activities strictly
     const count = userLogs[dateStr] || 0;
@@ -99,14 +113,17 @@ export const calculateLearnerStreak = (user, enrollments = []) => {
 
   // Calculate current streak from today backwards consecutively
   // If today is active, start from today; if not, check yesterday
-  const todayEntry = days[days.length - 1];
-  const yesterdayEntry = days.length > 1 ? days[days.length - 2] : null;
+  const todayKey = toLocalDateKey(today);
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  const todayEntry = days.find((day) => day.date === todayKey);
+  const yesterdayEntry = days.find((day) => day.date === toLocalDateKey(yesterday));
 
   let startIndex = -1;
   if (todayEntry && todayEntry.count > 0) {
-    startIndex = days.length - 1;
+    startIndex = days.indexOf(todayEntry);
   } else if (yesterdayEntry && yesterdayEntry.count > 0) {
-    startIndex = days.length - 2;
+    startIndex = days.indexOf(yesterdayEntry);
   }
 
   if (startIndex !== -1) {

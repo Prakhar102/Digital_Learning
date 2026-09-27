@@ -4,6 +4,7 @@ import {
   MCP_SERVERS,
   sendJsonRpcRequest,
 } from "../../services/mcpService";
+import { getAllCourses } from "../../services/courseService";
 import {
   Server,
   Terminal,
@@ -34,6 +35,11 @@ export default function MCPExplorer() {
   const [copiedReq, setCopiedReq] = useState(false);
   const [copiedRes, setCopiedRes] = useState(false);
   const [execHistory, setExecHistory] = useState([]);
+  const [courses, setCourses] = useState([]);
+
+  useEffect(() => {
+    getAllCourses().then((items) => setCourses(Array.isArray(items) ? items : [])).catch(() => setCourses([]));
+  }, []);
 
   // Set default tool inputs when tool changes
   useEffect(() => {
@@ -41,18 +47,14 @@ export default function MCPExplorer() {
       const initial = {};
       Object.keys(selectedTool.inputSchema.properties).forEach((key) => {
         const prop = selectedTool.inputSchema.properties[key];
-        if (key === "userId") initial[key] = "usr_student_01";
-        else if (key === "courseId") initial[key] = "1";
-        else if (key === "watchPercentage") initial[key] = 95;
-        else if (key === "gradeScore") initial[key] = 92;
+        if (key === "courseId") initial[key] = courses[0]?.id ? String(courses[0].id) : "";
         else if (prop.default) initial[key] = prop.default;
-        else if (prop.type === "string") initial[key] = key === "query" ? "vector search" : "Sample Parameter";
-        else if (prop.type === "number") initial[key] = 100;
+        else if (prop.type === "string" || prop.type === "number") initial[key] = "";
         else initial[key] = "";
       });
       setToolInputs(initial);
     }
-  }, [selectedTool]);
+  }, [selectedTool, courses]);
 
   const handleSelectServer = (server) => {
     setSelectedServer(server);
@@ -91,7 +93,7 @@ export default function MCPExplorer() {
         id: Date.now(),
         tool: selectedTool.name,
         server: selectedServer.name,
-        latency: resp?.meta?.latencyMs || 15,
+        latency: resp?.meta?.latencyMs,
         status: resp?.error ? "ERROR" : "SUCCESS",
         timestamp: new Date().toLocaleTimeString(),
       },
@@ -137,29 +139,29 @@ export default function MCPExplorer() {
               </span>
               <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center gap-1.5">
                 <ShieldCheck size={12} />
-                JSON-RPC 2.0 Compliant
+                Browser JSON-RPC Adapter
               </span>
             </div>
             <h1 className="text-2xl font-bold text-slate-900 tracking-tight mt-1.5 flex items-center gap-2">
               Model Context Protocol (MCP) Server Explorer
             </h1>
             <p className="text-sm text-slate-600 mt-1">
-              Inspect, query, and invoke tools across all 4 enterprise MCP servers using standard JSON-RPC 2.0 transport.
+              Inspect real LMS API data through a browser-side JSON-RPC adapter. No remote MCP servers or MCP transport are configured.
             </p>
           </div>
 
           <div className="flex items-center gap-3">
             <button
-              onClick={() => handleSelectServer(selectedServer)}
+              onClick={() => sendJsonRpcRequest(selectedServer.uri, "initialize").then(setLastResponse)}
               className="inline-flex items-center gap-2 px-3.5 py-2 bg-white border border-slate-300 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-50 transition shadow-xs"
             >
               <RefreshCw size={13} />
-              Ping Protocol Gateways
+              Check Adapter
             </button>
           </div>
         </div>
 
-        {/* ── 4 MCP Server Grid Cards ── */}
+        {/* ── Configured client API adapters ── */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {MCP_SERVERS.map((server) => {
             const isSelected = selectedServer.id === server.id;
@@ -179,9 +181,9 @@ export default function MCPExplorer() {
                   <div className="h-9 w-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-sm">
                     <Server size={18} />
                   </div>
-                  <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-100 text-emerald-700 flex items-center gap-1">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                    {server.latency}
+                  <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-slate-100 text-slate-700 flex items-center gap-1">
+                    <span className="h-1.5 w-1.5 rounded-full bg-slate-400"></span>
+                    {server.status}
                   </span>
                 </div>
 
@@ -280,7 +282,12 @@ export default function MCPExplorer() {
                           </span>
                         </div>
 
-                        {schema.enum ? (
+                        {key === "courseId" ? (
+                          <select value={toolInputs[key] || ""} onChange={(e) => handleInputChange(key, e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-800">
+                            <option value="">Select an LMS course</option>
+                            {courses.map((course) => <option key={course.id} value={course.id}>{course.title} (#{course.id})</option>)}
+                          </select>
+                        ) : schema.enum ? (
                           <select
                             value={toolInputs[key] || schema.default || ""}
                             onChange={(e) => handleInputChange(key, e.target.value)}
@@ -388,7 +395,7 @@ export default function MCPExplorer() {
                         <p className="text-[10px] text-slate-500 truncate">{item.server}</p>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
-                        <span className="text-[10px] font-mono text-slate-500">{item.latency}ms</span>
+                        <span className="text-[10px] font-mono text-slate-500">{item.latency == null ? "—" : `${item.latency}ms`}</span>
                         <span className="px-1.5 py-0.5 text-[9px] font-bold rounded-full bg-emerald-100 text-emerald-700">
                           {item.status}
                         </span>
@@ -417,8 +424,8 @@ export default function MCPExplorer() {
                       <Clock size={11} className="text-blue-500" />
                       {lastResponse.meta.latencyMs}ms
                     </span>
-                    <span className="px-2 py-0.5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-md text-[11px] font-bold">
-                      200 OK
+                    <span className={`px-2 py-0.5 rounded-md text-[11px] font-bold ${lastResponse.error ? "bg-rose-50 border border-rose-200 text-rose-700" : "bg-emerald-50 border border-emerald-200 text-emerald-700"}`}>
+                      {lastResponse.error ? "RPC ERROR" : "RPC RESPONSE"}
                     </span>
                   </div>
                 )}
@@ -430,7 +437,7 @@ export default function MCPExplorer() {
                   <div className="flex items-center justify-between mb-1.5">
                     <span className="text-[11px] font-bold text-slate-600 flex items-center gap-1">
                       <Code2 size={13} />
-                      OUTGOING REQUEST (CLIENT &rarr; MCP SERVER)
+                      OUTGOING REQUEST (BROWSER ADAPTER)
                     </span>
                     {lastRequest && (
                       <button
@@ -454,7 +461,7 @@ export default function MCPExplorer() {
                   <div className="flex items-center justify-between mb-1.5">
                     <span className="text-[11px] font-bold text-slate-600 flex items-center gap-1">
                       <FileCode size={13} />
-                      INCOMING RESPONSE (MCP SERVER &rarr; CLIENT)
+                      INCOMING RESPONSE (BROWSER ADAPTER)
                     </span>
                     {lastResponse && (
                       <button
@@ -478,10 +485,10 @@ export default function MCPExplorer() {
             {/* Architecture Standards & Specification Badge */}
             <div className="p-4 bg-slate-100/60 rounded-xl border border-slate-200 text-xs text-slate-600 space-y-1">
               <p className="font-semibold text-slate-800">
-                Model Context Protocol Architectural Adherence:
+                Adapter scope:
               </p>
               <p className="text-[11px] text-slate-500 leading-relaxed">
-                All 4 MCP Servers implement bidirectional JSON-RPC 2.0 framing over standard transport. Tool definitions declare explicit JSON Schema primitives, supporting multi-agent tool binding, continuous telemetry logging, and tamper-resistant audit verification.
+                This page wraps configured LMS client services in a local JSON-RPC interface. Tool results are fetched when invoked. No remote MCP transport, vector database, transcript extractor, or certificate verification service is configured in this project.
               </p>
             </div>
           </div>

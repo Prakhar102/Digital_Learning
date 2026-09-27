@@ -3,7 +3,6 @@ import {
   CheckCircle,
   Save,
 } from "lucide-react";
-import DashboardLayout from "../../components/dashboard/DashboardLayout";
 import LeetCodeStreakHeatmap from "../../components/profile/LeetCodeStreakHeatmap";
 import { getCurrentUser } from "../../services/userService";
 
@@ -37,8 +36,7 @@ function LearnerProfile() {
   };
 
   return (
-    <DashboardLayout>
-      <div className="p-8 max-w-5xl mx-auto space-y-6">
+    <div className="p-8 max-w-5xl mx-auto space-y-6">
         {/* ── Header ── */}
         <div className="pb-6 border-b border-slate-200">
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">
@@ -108,8 +106,7 @@ function LearnerProfile() {
             </div>
           </form>
         </div>
-      </div>
-    </DashboardLayout>
+    </div>
   );
 }
 
