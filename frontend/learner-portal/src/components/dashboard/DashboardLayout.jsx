@@ -102,6 +102,7 @@ function DashboardLayout({ children }) {
   };
 
   useEffect(() => {
+    setShowProfileModal(false);
     let intervalId = null;
     let currentUserId = user?.id || null;
     const init = async () => {
@@ -132,13 +133,21 @@ function DashboardLayout({ children }) {
       if (user) refreshStreak(user);
     };
 
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        setShowProfileModal(false);
+      }
+    };
+
     window.addEventListener("storage", handleStorage);
     window.addEventListener("dlm-notifications-updated", handleStorage);
+    window.addEventListener("keydown", handleKeyDown);
 
     return () => {
       if (intervalId) clearInterval(intervalId);
       window.removeEventListener("storage", handleStorage);
       window.removeEventListener("dlm-notifications-updated", handleStorage);
+      window.removeEventListener("keydown", handleKeyDown);
     };
   }, [location.pathname]);
 
@@ -267,11 +276,15 @@ function DashboardLayout({ children }) {
             return (
               <button
                 key={item.label}
-                onClick={() => navigate(item.path)}
+                type="button"
+                onClick={() => {
+                  setShowProfileModal(false);
+                  navigate(item.path);
+                }}
                 className={`
                   w-full flex items-center gap-3
                   px-3 py-2.5 rounded-lg
-                  text-[13px] font-medium transition-all
+                  text-[13px] font-medium transition-all cursor-pointer
                   ${active
                     ? "bg-blue-50 text-blue-700 font-semibold shadow-xs"
                     : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/80"
@@ -368,7 +381,14 @@ function DashboardLayout({ children }) {
 
       {/* ── Interactive Profile & LeetCode Streak Modal ── */}
       {showProfileModal && (
-        <div className="fixed inset-0 z-[9999] bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowProfileModal(false);
+            }
+          }}
+          className="fixed inset-0 z-[9999] bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200"
+        >
           <div
             ref={profileModalRef}
             className="bg-white border border-slate-200 rounded-3xl max-w-4xl w-full max-h-[92vh] overflow-y-auto shadow-2xl p-6 md:p-8 space-y-6 animate-in zoom-in-95 duration-200 relative"
