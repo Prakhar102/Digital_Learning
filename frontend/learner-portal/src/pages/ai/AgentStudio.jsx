@@ -1,495 +1,565 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
 import {
   Bot,
-  Sparkles,
   Send,
-  GraduationCap,
-  ClipboardCheck,
-  Brain,
-  Briefcase,
-  Terminal,
+  Cpu,
+  Network,
+  Play,
+  Square,
+  ChevronRight,
   CheckCircle2,
-  RotateCcw,
+  AlertCircle,
+  Clock,
+  Wrench,
+  MessageSquare,
+  Layers,
   Zap,
+  Brain,
+  BookOpen,
+  ClipboardCheck,
+  Briefcase,
+  GraduationCap,
+  RefreshCw,
+  ArrowRight,
+  Workflow,
+  Key,
 } from "lucide-react";
-import DashboardLayout from "../../components/dashboard/DashboardLayout";
-import { AGENT_PERSONAS, runAgentExecution } from "../../services/agentService";
+import {
+  AGENT_PERSONAS,
+  runAgent,
+  runOrchestration,
+  agentBus,
+} from "../../services/agentService";
+import { isApiKeySet } from "../../services/geminiService";
 
+// ── Color maps ────────────────────────────────────────────────────────────────
+const AGENT_COLORS = {
+  violet: { bg: "bg-violet-100", text: "text-violet-700", border: "border-violet-200", badge: "bg-violet-600", dot: "bg-violet-500" },
+  blue: { bg: "bg-blue-100", text: "text-blue-700", border: "border-blue-200", badge: "bg-blue-600", dot: "bg-blue-500" },
+  emerald: { bg: "bg-emerald-100", text: "text-emerald-700", border: "border-emerald-200", badge: "bg-emerald-600", dot: "bg-emerald-500" },
+  purple: { bg: "bg-purple-100", text: "text-purple-700", border: "border-purple-200", badge: "bg-purple-600", dot: "bg-purple-500" },
+  amber: { bg: "bg-amber-100", text: "text-amber-700", border: "border-amber-200", badge: "bg-amber-600", dot: "bg-amber-500" },
+  rose: { bg: "bg-rose-100", text: "text-rose-700", border: "border-rose-200", badge: "bg-rose-600", dot: "bg-rose-500" },
+  cyan: { bg: "bg-cyan-100", text: "text-cyan-700", border: "border-cyan-200", badge: "bg-cyan-600", dot: "bg-cyan-500" },
+};
+
+const AGENT_ICONS = {
+  orchestrator: Workflow,
+  rag: Brain,
+  assessment: ClipboardCheck,
+  skillgap: Layers,
+  career: Briefcase,
+  socratic: GraduationCap,
+  mcp: Cpu,
+};
+
+// ── Agent Card ────────────────────────────────────────────────────────────────
+function AgentCard({ persona, isActive, isSelected, onSelect, busMessages }) {
+  const colors = AGENT_COLORS[persona.color] || AGENT_COLORS.blue;
+  const Icon = AGENT_ICONS[persona.id] || Bot;
+  const myMessages = busMessages.filter((m) => m.from === persona.id || m.to === persona.id).slice(-3);
+
+  return (
+    <button
+      onClick={() => onSelect(persona.id)}
+      className={`w-full text-left p-4 rounded-xl border-2 transition-all duration-150 ${
+        isSelected
+          ? `${colors.border} ${colors.bg} shadow-md`
+          : "border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm"
+      }`}
+    >
+      <div className="flex items-start gap-3">
+        <div className={`h-9 w-9 rounded-lg ${isSelected ? colors.badge : "bg-slate-700"} text-white flex items-center justify-center shrink-0 shadow-sm transition-colors`}>
+          <Icon size={18} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-bold text-slate-900 truncate">{persona.name}</span>
+            {isActive && (
+              <span className="flex items-center gap-1 text-[9px] font-bold text-emerald-700 bg-emerald-100 border border-emerald-200 px-1.5 py-0.5 rounded-full">
+                <span className="h-1.5 w-1.5 bg-emerald-500 rounded-full animate-pulse" />
+                RUNNING
+              </span>
+            )}
+          </div>
+          <p className="text-[11px] text-slate-500 font-medium mt-0.5">{persona.role}</p>
+          <p className="text-[11px] text-slate-400 mt-1 leading-relaxed line-clamp-2">{persona.description}</p>
+          <div className="flex flex-wrap gap-1 mt-2">
+            {persona.tools.map((t) => (
+              <span key={t} className="text-[9px] font-mono text-slate-500 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded">
+                {t}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Bus messages */}
+      {myMessages.length > 0 && (
+        <div className="mt-3 pt-3 border-t border-slate-200 space-y-1">
+          {myMessages.map((msg) => (
+            <div key={msg.id} className="flex items-start gap-1.5 text-[10px] text-slate-500">
+              <MessageSquare size={9} className="mt-0.5 shrink-0 text-slate-400" />
+              <span className="truncate">{msg.from === persona.id ? `To ${msg.to}` : `From ${msg.from}`}: {msg.message.slice(0, 60)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </button>
+  );
+}
+
+// ── Orchestration Step ────────────────────────────────────────────────────────
+function OrchestrationStep({ step, index }) {
+  const [expanded, setExpanded] = useState(false);
+  const colors = step.agentId ? AGENT_COLORS[AGENT_PERSONAS[step.agentId]?.color] : AGENT_COLORS.violet;
+  const Icon = step.agentId ? (AGENT_ICONS[step.agentId] || Bot) : Workflow;
+
+  const getStepLabel = () => {
+    switch (step.type) {
+      case "orchestrator_start": return "Orchestrator started";
+      case "plan_decided": return `Plan: ${step.agents?.join(" → ")}`;
+      case "agent_start": return `${step.agentName} started`;
+      case "agent_complete": return `${step.agentName} completed`;
+      case "tool_call": return `Tool: ${step.name}`;
+      case "synthesis_start": return "Synthesizing results";
+      case "synthesis_complete": return "Synthesis complete";
+      case "orchestration_complete": return "Orchestration complete";
+      default: return step.type;
+    }
+  };
+
+  const hasDetail = step.text || step.finalAnswer || step.args || step.output;
+
+  return (
+    <div className="flex gap-3">
+      <div className="flex flex-col items-center">
+        <div className={`h-6 w-6 rounded-full flex items-center justify-center shrink-0 ${colors?.bg || "bg-slate-100"} border ${colors?.border || "border-slate-200"}`}>
+          <Icon size={12} className={colors?.text || "text-slate-600"} />
+        </div>
+        <div className="w-px flex-1 bg-slate-200 mt-1" />
+      </div>
+      <div className="pb-4 flex-1 min-w-0">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-semibold text-slate-700">{getStepLabel()}</span>
+            {step.type === "tool_call" && (
+              <span className="text-[9px] font-mono text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+                {step.name}
+              </span>
+            )}
+          </div>
+          {hasDetail && (
+            <button onClick={() => setExpanded(!expanded)} className="text-[10px] text-blue-600 hover:text-blue-800 flex items-center gap-0.5">
+              {expanded ? "Hide" : "Show"} <ChevronRight size={10} className={`transition-transform ${expanded ? "rotate-90" : ""}`} />
+            </button>
+          )}
+        </div>
+
+        {step.message && (
+          <p className="text-[10px] text-slate-400 mt-0.5 truncate">{step.message}</p>
+        )}
+
+        {expanded && (
+          <div className="mt-2 bg-slate-900 rounded-lg p-3 text-[11px] font-mono text-slate-300 overflow-x-auto max-h-48">
+            <pre className="whitespace-pre-wrap break-words">
+              {step.text || step.finalAnswer
+                ? (step.text || step.finalAnswer).slice(0, 800)
+                : JSON.stringify(step.args || step.output || step, null, 2).slice(0, 800)}
+            </pre>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Main Component ────────────────────────────────────────────────────────────
 function AgentStudio() {
-  const navigate = useNavigate();
-  const [selectedAgentId, setSelectedAgentId] = useState("assessment");
+  const [mode, setMode] = useState("orchestrated"); // "orchestrated" | "single"
+  const [selectedAgentId, setSelectedAgentId] = useState("rag");
   const [prompt, setPrompt] = useState("");
   const [isRunning, setIsRunning] = useState(false);
-  const [executionResult, setExecutionResult] = useState(null);
+  const [activeAgentId, setActiveAgentId] = useState(null);
+  const [orchestrationSteps, setOrchestrationSteps] = useState([]);
+  const [finalAnswer, setFinalAnswer] = useState("");
+  const [singleResult, setSingleResult] = useState(null);
+  const [busMessages, setBusMessages] = useState([]);
+  const [apiKeyReady, setApiKeyReady] = useState(false);
+  const [showApiSetup, setShowApiSetup] = useState(false);
+  const [apiKeyInput, setApiKeyInput] = useState("");
+  const stepsEndRef = useRef(null);
 
-  // Interactive Quiz State if generated
-  const [quizAnswers, setQuizAnswers] = useState({});
-  const [quizSubmitted, setQuizSubmitted] = useState(false);
-  const [quizScore, setQuizScore] = useState(0);
+  useEffect(() => {
+    setApiKeyReady(isApiKeySet());
 
-  const activePersona = AGENT_PERSONAS[selectedAgentId] || AGENT_PERSONAS.coach;
+    // Subscribe to all bus messages
+    const unsubs = Object.keys(AGENT_PERSONAS).map((id) =>
+      agentBus.on(id, (event) => {
+        setBusMessages((prev) => [...prev.slice(-99), event]);
+      })
+    );
+    // Also subscribe to "system" messages
+    agentBus.on("system", (event) => {
+      setBusMessages((prev) => [...prev.slice(-99), event]);
+    });
 
-  const handleRunAgent = async (customPrompt) => {
-    const promptToRun = customPrompt || prompt;
-    if (!promptToRun.trim() || isRunning) return;
+    return () => unsubs.forEach((u) => u && u());
+  }, []);
 
+  useEffect(() => {
+    stepsEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [orchestrationSteps]);
+
+  const saveApiKey = () => {
+    if (apiKeyInput.trim()) {
+      localStorage.setItem("GEMINI_API_KEY", apiKeyInput.trim());
+      setApiKeyReady(true);
+      setShowApiSetup(false);
+      setApiKeyInput("");
+    }
+  };
+
+  const handleRun = async () => {
+    if (!prompt.trim() || isRunning) return;
     setIsRunning(true);
-    setExecutionResult(null);
-    setQuizAnswers({});
-    setQuizSubmitted(false);
+    setFinalAnswer("");
+    setSingleResult(null);
+    setOrchestrationSteps([]);
+    setBusMessages([]);
+    agentBus.clear();
 
     try {
-      const result = await runAgentExecution({
-        agentId: selectedAgentId,
-        prompt: promptToRun.trim(),
-      });
-      setExecutionResult(result);
+      if (mode === "orchestrated") {
+        setActiveAgentId("orchestrator");
+        const result = await runOrchestration({
+          prompt: prompt.trim(),
+          onStep: (step) => {
+            setOrchestrationSteps((prev) => [...prev, step]);
+            if (step.agentId) setActiveAgentId(step.agentId);
+          },
+        });
+        setFinalAnswer(result.finalAnswer);
+        setActiveAgentId(null);
+      } else {
+        setActiveAgentId(selectedAgentId);
+        const result = await runAgent({
+          agentId: selectedAgentId,
+          prompt: prompt.trim(),
+          onToolCall: (info) => {
+            setOrchestrationSteps((prev) => [...prev, { type: "tool_call", agentId: selectedAgentId, ...info }]);
+          },
+        });
+        setSingleResult(result);
+        setActiveAgentId(null);
+      }
     } catch (err) {
-      console.error("Agent execution error:", err);
+      setFinalAnswer(`Error: ${err.message}`);
+      setActiveAgentId(null);
     } finally {
       setIsRunning(false);
     }
   };
 
-  const handleQuizAnswer = (qId, optionIdx) => {
-    if (quizSubmitted) return;
-    setQuizAnswers((prev) => ({ ...prev, [qId]: optionIdx }));
+  const QUICK_PROMPTS = {
+    orchestrated: [
+      "Analyze my skill gaps and recommend courses to fill them",
+      "Find assessments on machine learning and review my progress",
+      "Build a career learning path for a Data Engineer role",
+      "What are the key concepts in my enrolled courses and how am I progressing?",
+    ],
+    single: {
+      rag: ["Explain neural networks from the course material", "What topics are covered in Python programming?"],
+      assessment: ["Find all available assessments on data science", "Show me questions about cloud computing"],
+      skillgap: ["Show my complete learning record and progress", "What courses have I completed?"],
+      career: ["Find courses for becoming a Machine Learning Engineer", "Show all Python courses available"],
+      socratic: ["Challenge my understanding of RESTful APIs", "Help me think through database normalization"],
+    },
   };
 
-  const handleScoreQuiz = (questions) => {
-    let score = 0;
-    questions.forEach((q) => {
-      if (quizAnswers[q.id] === q.correctIndex) {
-        score++;
-      }
-    });
-    setQuizScore(Math.round((score / questions.length) * 100));
-    setQuizSubmitted(true);
-  };
-
-  const promptShortcuts = {
-    assessment: [
-      "Show assessments",
-      "Find an assessment about cloud",
-      "Find an assessment about databases",
-    ],
-    skillgap: [
-      "Review my LMS learning record",
-      "Show my course progress",
-      "Summarize my assessment attempts",
-    ],
-    career: [
-      "Find courses related to cloud",
-      "Find courses related to databases",
-      "Show all available courses",
-    ],
-    coach: [
-      "Search course materials about architecture",
-      "Search for lesson notes about APIs",
-      "Find course material about databases",
-    ],
-  };
-
-  const getAgentIcon = (id) => {
-    switch (id) {
-      case "coach":
-        return <GraduationCap size={18} className="text-blue-600" />;
-      case "assessment":
-        return <ClipboardCheck size={18} className="text-emerald-600" />;
-      case "skillgap":
-        return <Brain size={18} className="text-purple-600" />;
-      case "career":
-        return <Briefcase size={18} className="text-amber-600" />;
-      default:
-        return <Bot size={18} className="text-slate-600" />;
-    }
-  };
+  const personas = Object.values(AGENT_PERSONAS).filter((p) => p.id !== "orchestrator");
 
   return (
-    <DashboardLayout>
-      <div className="p-8 max-w-7xl mx-auto space-y-8">
-        {/* ── Header ── */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-slate-200">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="px-2 py-0.5 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded uppercase tracking-wider">
-              Live LMS Data Tools
-              </span>
+    <div className="min-h-screen bg-slate-50">
+      {/* ── Header ── */}
+      <div className="bg-white border-b border-slate-200 px-6 py-4">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-violet-600 text-white flex items-center justify-center shadow-sm">
+              <Network size={20} />
             </div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-              LMS Learning Data Explorer
-            </h1>
-            <p className="text-sm text-slate-500 mt-1">
-              Search current course material, published assessments, catalog matches, and the signed-in learner's recorded progress. No language model is connected.
-            </p>
-          </div>
-
-          <button
-            onClick={() => navigate("/knowledge-hub")}
-            className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg transition-colors shadow-xs"
-          >
-            Knowledge Hub
-          </button>
-        </div>
-
-        {/* ── 4 Agent Persona Selection Grid ── */}
-        <div>
-          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
-            Select Active Agent Persona
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {Object.values(AGENT_PERSONAS).map((agent) => {
-              const isSelected = selectedAgentId === agent.id;
-              return (
-                <div
-                  key={agent.id}
-                  onClick={() => {
-                    setSelectedAgentId(agent.id);
-                    setExecutionResult(null);
-                  }}
-                  className={`p-5 rounded-xl border transition-all cursor-pointer flex flex-col justify-between ${
-                    isSelected
-                      ? "bg-white border-blue-600 ring-2 ring-blue-600/10 shadow-sm"
-                      : "bg-white border-slate-200/80 hover:border-slate-300 shadow-xs"
-                  }`}
-                >
-                  <div>
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="h-9 w-9 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center">
-                        {getAgentIcon(agent.id)}
-                      </div>
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-100 text-slate-600">
-                        {agent.tools.length} Tools
-                      </span>
-                    </div>
-
-                    <h3 className="text-sm font-bold text-slate-900">{agent.name}</h3>
-                    <p className="text-[11px] font-semibold text-slate-500 mt-0.5">{agent.role}</p>
-                    <p className="text-xs text-slate-600 mt-2 leading-relaxed line-clamp-2">
-                      {agent.description}
-                    </p>
-                  </div>
-
-                  <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] font-semibold">
-                    <span className={isSelected ? "text-blue-600" : "text-slate-400"}>
-                      {isSelected ? "Active Persona" : "Select Agent"}
-                    </span>
-                    {isSelected && <Zap size={13} className="text-blue-600 fill-blue-600" />}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* ── Agent Command & Tool Trigger Bar ── */}
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                Agent Interface: {activePersona.name}
-              </h3>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] text-slate-400">Available Function Tools:</span>
-              {activePersona.tools.map((t) => (
-                <span
-                  key={t}
-                  className="px-2 py-0.5 text-[10px] font-mono font-bold bg-slate-100 text-slate-700 border border-slate-200 rounded"
-                >
-                  {t}()
-                </span>
-              ))}
+            <div>
+              <h1 className="text-base font-bold text-slate-900">Agent Studio</h1>
+              <p className="text-[11px] text-slate-500">Multi-agent orchestration powered by Gemini 1.5 Flash</p>
             </div>
           </div>
 
-          <div className="flex gap-3">
-            <input
-              type="text"
-              placeholder={`Send instruction or tool trigger to ${activePersona.name}...`}
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleRunAgent()}
-              className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:bg-white transition-colors"
-            />
-            <button
-              onClick={() => handleRunAgent()}
-              disabled={isRunning || !prompt.trim()}
-              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors flex items-center gap-2 shrink-0 disabled:opacity-50"
-            >
-              <Sparkles size={14} />
-              {isRunning ? "Reading LMS Data..." : "Run Lookup"}
-            </button>
-          </div>
-
-          {/* Quick Shortcuts */}
-          <div className="flex items-center gap-2 flex-wrap pt-2 border-t border-slate-100">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-              Quick Triggers:
+          <div className="flex items-center gap-3">
+            <span className={`flex items-center gap-1.5 text-xs font-medium ${apiKeyReady ? "text-emerald-600" : "text-amber-600"}`}>
+              <div className={`h-2 w-2 rounded-full ${apiKeyReady ? "bg-emerald-500" : "bg-amber-500"}`} />
+              {apiKeyReady ? "Gemini connected" : "No API key — fallback mode"}
             </span>
-            {promptShortcuts[selectedAgentId]?.map((s, idx) => (
+
+            {!apiKeyReady && (
               <button
-                key={idx}
-                onClick={() => {
-                  setPrompt(s);
-                  handleRunAgent(s);
-                }}
-                className="px-3 py-1 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg text-[11px] text-slate-700 font-medium transition-colors"
+                onClick={() => setShowApiSetup(!showApiSetup)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-700 text-xs font-semibold rounded-lg"
               >
-                {s}
+                <Key size={13} />
+                Set API Key
               </button>
-            ))}
+            )}
+
+            {/* Mode switcher */}
+            <div className="flex items-center bg-slate-100 rounded-lg p-1 gap-1">
+              <button
+                onClick={() => setMode("orchestrated")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                  mode === "orchestrated" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                <Workflow size={13} />
+                Orchestrated
+              </button>
+              <button
+                onClick={() => setMode("single")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                  mode === "single" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                <Bot size={13} />
+                Single Agent
+              </button>
+            </div>
           </div>
         </div>
+      </div>
 
-        {/* ── Tool Execution Output & Interactive Widgets ── */}
-        {executionResult && (
-          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
-            {/* Tool Call Trace Card */}
-            <div className="bg-slate-900 text-slate-100 rounded-2xl p-6 shadow-md space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-                <div className="flex items-center gap-2">
-                  <Terminal size={16} className="text-emerald-400" />
-                  <span className="text-xs font-mono font-bold text-emerald-400">
-                    [TOOL_CALL_EXECUTED]: {executionResult.toolCall.tool}()
-                  </span>
-                </div>
-                <div className="flex items-center gap-3 text-xs font-mono text-slate-400">
-                  <span>Latency: {executionResult.toolCall.durationMs}ms</span>
-                  <span className="px-2 py-0.5 bg-emerald-950 text-emerald-300 border border-emerald-800 rounded font-bold">
-                    {executionResult.toolCall.status}
-                  </span>
-                </div>
+      {/* API Key setup */}
+      {showApiSetup && (
+        <div className="bg-amber-50 border-b border-amber-200 px-6 py-4">
+          <div className="max-w-7xl mx-auto flex items-center gap-3">
+            <Key size={15} className="text-amber-600 shrink-0" />
+            <p className="text-xs text-amber-800 font-medium">
+              Get a free key at{" "}
+              <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="underline font-bold">aistudio.google.com</a>
+            </p>
+            <input
+              type="password"
+              value={apiKeyInput}
+              onChange={(e) => setApiKeyInput(e.target.value)}
+              placeholder="AIza..."
+              className="flex-1 bg-white border border-amber-300 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-amber-500"
+              onKeyDown={(e) => e.key === "Enter" && saveApiKey()}
+            />
+            <button onClick={saveApiKey} className="px-4 py-1.5 bg-amber-600 text-white text-xs font-semibold rounded-lg hover:bg-amber-700">Save</button>
+            <button onClick={() => setShowApiSetup(false)} className="px-3 py-1.5 text-amber-700 text-xs hover:bg-amber-100 rounded-lg">Cancel</button>
+          </div>
+        </div>
+      )}
+
+      <div className="max-w-7xl mx-auto px-6 py-6">
+        <div className="grid grid-cols-1 xl:grid-cols-[320px_1fr] gap-6">
+          {/* ── Left: Agent Selection ── */}
+          <div className="space-y-4">
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+              <div className="flex items-center gap-2 mb-4">
+                <Cpu size={15} className="text-slate-600" />
+                <h2 className="text-sm font-bold text-slate-900">
+                  {mode === "orchestrated" ? "Active Agents" : "Select Agent"}
+                </h2>
               </div>
 
-              <p className="text-xs text-slate-300 whitespace-pre-line leading-relaxed">
-                {executionResult.response}
-              </p>
+              {mode === "orchestrated" && (
+                <div className="mb-4 p-3 bg-violet-50 border border-violet-200 rounded-xl">
+                  <div className="flex items-center gap-2">
+                    <div className={`h-8 w-8 rounded-lg bg-violet-600 text-white flex items-center justify-center shadow-sm`}>
+                      <Workflow size={16} />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-violet-900">Orchestrator</p>
+                      <p className="text-[10px] text-violet-600">Delegates to all agents automatically</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                {personas.map((persona) => (
+                  <AgentCard
+                    key={persona.id}
+                    persona={persona}
+                    isActive={activeAgentId === persona.id}
+                    isSelected={mode === "single" && selectedAgentId === persona.id}
+                    onSelect={mode === "single" ? setSelectedAgentId : () => {}}
+                    busMessages={busMessages}
+                  />
+                ))}
+              </div>
             </div>
 
-            {/* ── Tool Result Widget: Generated Assessment Quiz ── */}
-            {executionResult.toolCall.tool === "find_assessments" && executionResult.toolCall.result.generatedQuestions?.length > 0 && (
-              <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-6">
-                <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-                  <div>
-                    <span className="px-2 py-0.5 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded uppercase tracking-wider">
-                      LMS Assessment
-                    </span>
-                    <h3 className="text-base font-bold text-slate-900 mt-1">
-                      {executionResult.toolCall.result.assessmentTitle}
-                    </h3>
+            {/* Bus Activity */}
+            {busMessages.length > 0 && (
+              <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <MessageSquare size={13} className="text-slate-500" />
+                    <h3 className="text-xs font-bold text-slate-700">Agent Bus Activity</h3>
                   </div>
-
-                  {quizSubmitted && (
-                    <div className="text-right">
-                      <span className="text-xs text-slate-400">Diagnostic Score</span>
-                      <p className="text-2xl font-bold text-emerald-600">{quizScore}%</p>
-                    </div>
-                  )}
+                  <span className="text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded font-mono">{busMessages.length} msgs</span>
                 </div>
-
-                <div className="space-y-6">
-                  {executionResult.toolCall.result.generatedQuestions.map((q, idx) => {
-                    const selectedOpt = quizAnswers[q.id];
-                    return (
-                      <div key={q.id} className="p-5 bg-slate-50 border border-slate-200/80 rounded-xl space-y-3">
-                        <p className="text-xs font-bold text-slate-900">
-                          {idx + 1}. {q.questionText}
-                        </p>
-
-                        <div className="space-y-2">
-                          {q.options.map((opt, optIdx) => {
-                            const isChosen = selectedOpt === optIdx;
-                            const isCorrect = optIdx === q.correctIndex;
-
-                            let btnStyle = "bg-white border-slate-200 text-slate-700 hover:bg-slate-100";
-                            if (quizSubmitted) {
-                              if (isCorrect) btnStyle = "bg-emerald-50 border-emerald-500 text-emerald-900 font-bold";
-                              else if (isChosen && !isCorrect) btnStyle = "bg-rose-50 border-rose-500 text-rose-900";
-                            } else if (isChosen) {
-                              btnStyle = "bg-blue-50 border-blue-600 text-blue-900 font-bold";
-                            }
-
-                            return (
-                              <button
-                                key={optIdx}
-                                onClick={() => handleQuizAnswer(q.id, optIdx)}
-                                className={`w-full text-left p-3 rounded-lg border text-xs transition-all flex items-center gap-3 ${btnStyle}`}
-                              >
-                                <span className="h-6 w-6 rounded-md bg-slate-100 flex items-center justify-center font-bold text-[11px] text-slate-600">
-                                  {["A", "B", "C", "D"][optIdx]}
-                                </span>
-                                <span className="flex-1">{opt}</span>
-                              </button>
-                            );
-                          })}
-                        </div>
-
-                        {quizSubmitted && (
-                          <p className="text-[11px] text-slate-500 pt-2 border-t border-slate-200">
-                            <span className="font-bold text-indigo-600">Key Concept:</span> {q.explanation}
-                          </p>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <div className="flex justify-end pt-2">
-                  {!quizSubmitted && executionResult.toolCall.result.generatedQuestions.every((question) => question.correctIndex >= 0) ? (
-                    <button
-                      onClick={() => handleScoreQuiz(executionResult.toolCall.result.generatedQuestions)}
-                      disabled={Object.keys(quizAnswers).length === 0}
-                      className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-xs transition-colors disabled:opacity-50 flex items-center gap-2"
-                    >
-                      <ClipboardCheck size={14} /> Submit & Score Quiz
-                    </button>
-                  ) : quizSubmitted ? (
-                    <button
-                      onClick={() => {
-                        setQuizAnswers({});
-                        setQuizSubmitted(false);
-                      }}
-                      className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 shadow-xs"
-                    >
-                      <RotateCcw size={13} /> Retake Diagnostic
-                    </button>
-                  ) : (
-                    <p className="text-xs text-slate-500">The LMS question API does not include an answer key, so this assessment cannot be scored here.</p>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* ── Tool Result Widget: Skill Gap Analysis ── */}
-            {executionResult.toolCall.tool === "review_learning_record" && (
-              <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-6">
-                <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-                  <div>
-                    <span className="px-2 py-0.5 text-[10px] font-bold text-purple-700 bg-purple-50 border border-purple-200 rounded uppercase tracking-wider">
-                      Recorded Learning Evidence
-                    </span>
-                    <h3 className="text-base font-bold text-slate-900 mt-1">
-                      Skill Gap Report: {executionResult.toolCall.result.role}
-                    </h3>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-xs text-slate-400">Assessment attempts</span>
-                    <p className="text-2xl font-bold text-purple-600">{executionResult.toolCall.result.attempts?.length || 0}</p>
-                  </div>
-                </div>
-
-                {/* Acquired Skills */}
-                <div className="space-y-3">
-                  <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                    Completed Courses
-                  </h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    {executionResult.toolCall.result.acquiredCompetencies.map((c, idx) => (
-                      <div key={idx} className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-bold text-slate-900">{c.name}</span>
-                          <CheckCircle2 size={14} className="text-emerald-600" />
-                        </div>
-                        <p className="text-[11px] text-slate-500 font-medium">{c.level}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Missing Deficiencies */}
-                <div className="space-y-3">
-                  <h4 className="text-xs font-bold text-rose-700 uppercase tracking-wider">
-                    Courses In Progress
-                  </h4>
-                  <div className="space-y-2.5">
-                    {executionResult.toolCall.result.missingGaps.map((gap, idx) => (
-                      <div
-                        key={idx}
-                        className="p-4 bg-rose-50/40 border border-rose-200 rounded-xl flex items-start justify-between gap-4"
-                      >
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold text-slate-900">{gap.skill}</span>
-                            <span className="px-2 py-0.2 text-[9px] font-bold rounded bg-rose-100 text-rose-700">
-                              {gap.severity}
-                            </span>
-                          </div>
-                          <p className="text-xs text-slate-600 mt-1">
-                            Recorded progress: {gap.recommendation}
-                          </p>
-                        </div>
-                        <button
-                          onClick={() => navigate("/courses")}
-                          className="px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-colors shrink-0 shadow-xs"
-                        >
-                          Find Course
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* ── Tool Result Widget: Career Roadmap ── */}
-            {executionResult.toolCall.tool === "find_courses" && executionResult.toolCall.result.milestones?.length > 0 && (
-              <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-6">
-                <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-                  <div>
-                    <span className="px-2 py-0.5 text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded uppercase tracking-wider">
-                      Course Catalog Results
-                    </span>
-                    <h3 className="text-base font-bold text-slate-900 mt-1">
-                      {executionResult.toolCall.result.title}
-                    </h3>
-                  </div>
-                  <span className="px-3 py-1 rounded-lg bg-amber-50 text-amber-800 border border-amber-200 text-xs font-bold">
-                    {executionResult.toolCall.result.milestones.length} catalog matches
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {executionResult.toolCall.result.milestones.map((m, idx) => (
-                    <div
-                      key={idx}
-                      className="p-5 bg-slate-50 border border-slate-200/80 rounded-xl flex flex-col justify-between space-y-4"
-                    >
-                      <div>
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600">
-                          {m.phase}
-                        </span>
-                        <h4 className="text-sm font-bold text-slate-900 mt-1">{m.title}</h4>
-
-                        <div className="mt-3 space-y-1">
-                          <p className="text-[11px] font-bold text-slate-500">Catalog course:</p>
-                          {m.courses.map((c, cIdx) => (
-                            <p key={cIdx} className="text-xs text-slate-700 flex items-center gap-1.5">
-                              <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-                              {c}
-                            </p>
-                          ))}
-                        </div>
-                      </div>
-
-                      <p className="pt-3 border-t border-slate-200 text-[10px] text-slate-500">Matches use course catalog text only.</p>
+                <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                  {busMessages.slice(-12).map((msg) => (
+                    <div key={msg.id} className="flex items-start gap-1.5 text-[10px]">
+                      <div className={`h-1.5 w-1.5 rounded-full mt-1 shrink-0 ${AGENT_COLORS[AGENT_PERSONAS[msg.from]?.color]?.dot || "bg-slate-400"}`} />
+                      <span className="text-slate-500 shrink-0 font-medium">{msg.from}</span>
+                      <ArrowRight size={8} className="mt-0.5 text-slate-300 shrink-0" />
+                      <span className="text-slate-400 shrink-0">{msg.to}</span>
+                      <span className="text-slate-400 truncate">: {msg.message.slice(0, 50)}</span>
                     </div>
                   ))}
                 </div>
               </div>
             )}
           </div>
-        )}
-        {executionResult && (
-          <details className="bg-white border border-slate-200 rounded-xl p-4">
-            <summary className="cursor-pointer text-xs font-semibold text-slate-700">Inspect complete source result</summary>
-            <pre className="mt-3 max-h-96 overflow-auto rounded-lg bg-slate-900 p-4 text-[11px] text-emerald-300">{JSON.stringify(executionResult.toolCall.result, null, 2)}</pre>
-          </details>
-        )}
+
+          {/* ── Right: Prompt + Execution ── */}
+          <div className="space-y-4">
+            {/* Prompt input */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+              <div className="flex items-center gap-2 mb-4">
+                <Zap size={15} className="text-slate-600" />
+                <h2 className="text-sm font-bold text-slate-900">
+                  {mode === "orchestrated" ? "Orchestrated Task" : `Run ${AGENT_PERSONAS[selectedAgentId]?.name}`}
+                </h2>
+              </div>
+
+              <textarea
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                placeholder={
+                  mode === "orchestrated"
+                    ? "Describe a complex task. The orchestrator will automatically select and coordinate the right agents..."
+                    : `Ask the ${AGENT_PERSONAS[selectedAgentId]?.name} a specific question...`
+                }
+                rows={4}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:bg-white transition-colors resize-none leading-relaxed"
+                onKeyDown={(e) => { if (e.key === "Enter" && e.metaKey) handleRun(); }}
+              />
+
+              {/* Quick prompts */}
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {(mode === "orchestrated"
+                  ? QUICK_PROMPTS.orchestrated
+                  : QUICK_PROMPTS.single[selectedAgentId] || []
+                ).map((p, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setPrompt(p)}
+                    className="text-[11px] px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg transition-colors border border-slate-200"
+                  >
+                    {p.slice(0, 60)}{p.length > 60 ? "..." : ""}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-100">
+                <p className="text-[10px] text-slate-400">
+                  {mode === "orchestrated"
+                    ? "Gemini selects optimal agents automatically"
+                    : `Using: ${AGENT_PERSONAS[selectedAgentId]?.tools.join(", ")}`}
+                </p>
+                <button
+                  onClick={handleRun}
+                  disabled={isRunning || !prompt.trim()}
+                  className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white text-sm font-semibold rounded-xl shadow-sm transition-colors"
+                >
+                  {isRunning ? (
+                    <><RefreshCw size={15} className="animate-spin" /> Running...</>
+                  ) : (
+                    <><Play size={15} /> Run</>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Execution trace */}
+            {orchestrationSteps.length > 0 && (
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                <div className="flex items-center gap-2 mb-4">
+                  <Workflow size={15} className="text-slate-600" />
+                  <h2 className="text-sm font-bold text-slate-900">Execution Trace</h2>
+                  <span className="ml-auto text-[10px] text-slate-400 font-mono">{orchestrationSteps.length} steps</span>
+                </div>
+                <div className="space-y-0 max-h-64 overflow-y-auto">
+                  {orchestrationSteps.map((step, i) => (
+                    <OrchestrationStep key={i} step={step} index={i} />
+                  ))}
+                  <div ref={stepsEndRef} />
+                </div>
+              </div>
+            )}
+
+            {/* Final Answer */}
+            {(finalAnswer || singleResult) && (
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                <div className="flex items-center gap-2 mb-4">
+                  <CheckCircle2 size={15} className="text-emerald-600" />
+                  <h2 className="text-sm font-bold text-slate-900">
+                    {mode === "orchestrated" ? "Synthesized Answer" : `${singleResult?.agent?.name} Response`}
+                  </h2>
+                  <span className="ml-auto text-[10px] font-mono text-blue-600 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded">
+                    gemini-3.8-flash
+                  </span>
+                </div>
+
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-[13px] text-slate-800 leading-relaxed whitespace-pre-wrap max-h-96 overflow-y-auto">
+                  {finalAnswer || singleResult?.text}
+                </div>
+
+                {/* Tool call log for single agent */}
+                {singleResult?.toolLog?.length > 0 && (
+                  <div className="mt-4 pt-4 border-t border-slate-100">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1">
+                      <Wrench size={10} />
+                      Tool Calls ({singleResult.toolLog.length})
+                    </p>
+                    <div className="space-y-2">
+                      {singleResult.toolLog.map((t, i) => (
+                        <div key={i} className="flex items-start gap-2 text-[11px]">
+                          <span className="font-mono text-blue-600 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded shrink-0">
+                            {t.name}
+                          </span>
+                          <span className="text-slate-500 truncate">
+                            {JSON.stringify(t.args || {}).slice(0, 80)}
+                          </span>
+                          <span className="text-emerald-600 shrink-0">✓ {t.round !== undefined ? `round ${t.round}` : ""}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Empty state */}
+            {!isRunning && !finalAnswer && !singleResult && orchestrationSteps.length === 0 && (
+              <div className="bg-white border border-dashed border-slate-300 rounded-2xl p-10 text-center">
+                <div className="h-12 w-12 rounded-xl bg-slate-100 flex items-center justify-center mx-auto mb-3">
+                  <Network size={24} className="text-slate-400" />
+                </div>
+                <p className="text-sm font-semibold text-slate-600">Enter a task and click Run</p>
+                <p className="text-xs text-slate-400 mt-1">
+                  {mode === "orchestrated"
+                    ? "The orchestrator will automatically coordinate multiple agents and synthesize their outputs"
+                    : "The selected agent will use its tools to fulfill your request"}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
-    </DashboardLayout>
+    </div>
   );
 }
 

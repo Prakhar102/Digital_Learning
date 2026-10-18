@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Digital Learning Mentor (DLM) — Tier-1 Enterprise HLA Presentation</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: #0B0F19;
+      color: #F8FAFC;
+    }
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .slide-card {
+      background: radial-gradient(120% 120% at 50% 0%, rgba(30, 41, 59, 0.5) 0%, rgba(15, 23, 42, 0.8) 100%);
+      border: 1px solid rgba(51, 65, 85, 0.6);
+      backdrop-filter: blur(12px);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between p-4 sm:p-8">
+
+  <!-- Top Navigation & Controls -->
+  <header class="max-w-7xl w-full mx-auto flex items-center justify-between pb-6 border-b border-slate-800">
+    <div class="flex items-center gap-3">
+      <div class="h-10 w-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center font-bold text-white shadow-lg">
+        DLM
+      </div>
+      <div>
+        <h1 class="text-sm font-bold tracking-tight text-white">Digital Learning Mentor (DLM)</h1>
+        <p class="text-xs text-slate-400 font-mono">Tier-1 Enterprise High-Level Architecture (Amazon / Flipkart Standard)</p>
+      </div>
+    </div>
+
+    <!-- Slide Switcher Buttons -->
+    <div class="flex items-center gap-2 bg-slate-900/80 p-1.5 rounded-xl border border-slate-800">
+      <button onclick="goToSlide(1)" id="btn-1" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 text-white transition-all shadow-sm">
+        Slide 1: Problem & Solution
+      </button>
+      <button onclick="goToSlide(2)" id="btn-2" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition-all">
+        Slide 2: Tech Stack & Rationale
+      </button>
+      <button onclick="goToSlide(3)" id="btn-3" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition-all">
+        Slide 3: Enterprise HLA Diagram
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Slide Container -->
+  <main class="max-w-7xl w-full mx-auto my-auto py-8">
+
+    <!-- ========================================================================= -->
+    <!-- SLIDE 1: Problem Statement & Proposed Solution -->
+    <!-- ========================================================================= -->
+    <section id="slide-1" class="space-y-6">
+      <div class="space-y-1">
+        <span class="text-xs font-mono font-bold uppercase tracking-wider text-sky-400 bg-sky-950/70 border border-sky-800 px-2.5 py-0.5 rounded-full">
+          Slide 01 // Executive Diagnosis & Transformation
+        </span>
+        <h2 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+          Core Problem Statement & The DLM All-In-One Solution
+        </h2>
+        <p class="text-sm text-slate-400 max-w-3xl">
+          Moving beyond fragmented tools and passive video lectures to a unified, curriculum-grounded learning ecosystem.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Problem Card -->
+        <div class="slide-card rounded-2xl p-6 sm:p-8 border-rose-500/40 relative overflow-hidden">
+          <div class="absolute top-0 right-0 w-32 h-32 bg-rose-500/10 rounded-full blur-2xl pointer-events-none"></div>
+          <div class="flex items-center justify-between pb-4 border-b border-slate-800 mb-6">
+            <h3 class="text-base font-bold text-rose-400 flex items-center gap-2">
+              <span class="h-2 w-2 rounded-full bg-rose-500"></span>
+              THE PROBLEM: WHY MODERN E-LEARNING FAILS
+            </h3>
+            <span class="text-xs font-mono text-slate-400 bg-slate-900 px-2 py-0.5 rounded">Current LMS Reality</span>
+          </div>
+
+          <div class="space-y-4">
+            <div class="space-y-1">
+              <h4 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+                <span class="text-rose-400 font-mono">01.</span> Fragmented Learning Toolchain
+              </h4>
+              <p class="text-xs text-slate-400 leading-relaxed pl-6">
+                Students juggle disconnected platforms: watching videos on Udemy/Coursera, quizzes on Google Forms, project submissions via Drive, and certificates over email with zero unified context.
+              </p>
+            </div>
+
+            <div class="space-y-1">
+              <h4 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+                <span class="text-rose-400 font-mono">02.</span> The 85%+ Course Abandonment Rate
+              </h4>
+              <p class="text-xs text-slate-400 leading-relaxed pl-6">
+                Static video lectures without real-time active guidance cause catastrophic dropouts. When learners encounter complex bugs or technical roadblocks, there is no instant expert help.
+              </p>
+            </div>
+
+            <div class="space-y-1">
+              <h4 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+                <span class="text-rose-400 font-mono">03.</span> Superficial Watching Without Accountability
+              </h4>
+              <p class="text-xs text-slate-400 leading-relaxed pl-6">
+                Passive consumption creates an illusion of competence. Traditional LMS platforms lack rigorous timed evaluations, rubric-based assignment workflows, and diagnostic tracking.
+              </p>
+            </div>
+
+            <div class="space-y-1">
+              <h4 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+                <span class="text-rose-400 font-mono">04.</span> Ungrounded Generic AI & Hallucinations
+              </h4>
+              <p class="text-xs text-slate-400 leading-relaxed pl-6">
+                Generic ChatGPT chatbots lack institutional curriculum context, hallucinate fake methods, and cannot inspect student quiz submissions, enrollments, or real progress data.
+              </p>
+            </div>
+
+            <div class="space-y-1">
+              <h4 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+                <span class="text-rose-400 font-mono">05.</span> Administrative Overload for Instructors
+              </h4>
+              <p class="text-xs text-slate-400 leading-relaxed pl-6">
+                Educators spend dozens of manual hours grading assignments, authoring quiz variations, and tracking cohorts across multiple disconnected spreadsheets.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Solution Card -->
+        <div class="slide-card rounded-2xl p-6 sm:p-8 border-emerald-500/40 relative overflow-hidden">
+          <div class="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none"></div>
+          <div class="flex items-center justify-between pb-4 border-b border-slate-800 mb-6">
+            <h3 class="text-base font-bold text-emerald-400 flex items-center gap-2">
+              <span class="h-2 w-2 rounded-full bg-emerald-500"></span>
+              THE DLM SOLUTION: A UNIFIED LEARNING PLATFORM
+            </h3>
+            <span class="text-xs font-mono text-emerald-400 bg-emerald-950/60 border border-emerald-800 px-2 py-0.5 rounded">Digital Learning Mentor</span>
+          </div>
+
+          <div class="space-y-4">
+            <div class="space-y-1">
+              <h4 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+                <span class="text-emerald-400 font-mono">01.</span> Complete All-In-One Learner Journey
+              </h4>
+              <p class="text-xs text-slate-400 leading-relaxed pl-6">
+                One unified portal: Course Catalog Discovery -> Interactive Module Learning Player -> Timed Quizzes with Leaderboards -> Hands-On Assignment Submissions -> Verifiable Digital Certificates.
+              </p>
+            </div>
+
+            <div class="space-y-1">
+              <h4 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+                <span class="text-emerald-400 font-mono">02.</span> Curriculum-Grounded Vector RAG Mentor
+              </h4>
+              <p class="text-xs text-slate-400 leading-relaxed pl-6">
+                AI mentoring grounded strictly in actual institutional course descriptions and lesson syllabi. Generates precise, factual answers with source citations—eliminating hallucinations completely.
+              </p>
+            </div>
+
+            <div class="space-y-1">
+              <h4 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+                <span class="text-emerald-400 font-mono">03.</span> Continuous Evaluation & Timed Assessments
+              </h4>
+              <p class="text-xs text-slate-400 leading-relaxed pl-6">
+                Built-in assessment engine featuring automated scoring, countdown timers, passing thresholds, question banks, and competitive gamified leaderboards.
+              </p>
+            </div>
+
+            <div class="space-y-1">
+              <h4 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+                <span class="text-emerald-400 font-mono">04.</span> Autonomous Multi-Agent Collaboration Swarm
+              </h4>
+              <p class="text-xs text-slate-400 leading-relaxed pl-6">
+                Six cooperating AI agents (RAG Mentor, Skill-Gap Analyst, Assessment Evaluator, Career Pathfinder, Socratic Debater, MCP Gateway) diagnosing learning gaps via an Agent Event Bus.
+              </p>
+            </div>
+
+            <div class="space-y-1">
+              <h4 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+                <span class="text-emerald-400 font-mono">05.</span> Model Context Protocol (MCP) & Instructor Hub
+              </h4>
+              <p class="text-xs text-slate-400 leading-relaxed pl-6">
+                Standardized JSON-RPC 2.0 servers bridging microservice data safely into AI, paired with full Admin & Instructor portals for course authoring and grading.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================================================= -->
+    <!-- SLIDE 2: Tech Stack & Why Used -->
+    <!-- ========================================================================= -->
+    <section id="slide-2" class="hidden space-y-6">
+      <div class="space-y-1">
+        <span class="text-xs font-mono font-bold uppercase tracking-wider text-sky-400 bg-sky-950/70 border border-sky-800 px-2.5 py-0.5 rounded-full">
+          Slide 02 // Engineering Foundations & Decisions
+        </span>
+        <h2 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+          Technology Stack & Architectural Rationale
+        </h2>
+        <p class="text-sm text-slate-400 max-w-3xl">
+          Engineered for sub-second frontend latency, enterprise-grade horizontal microservice scalability, and open AI standards.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+        <!-- Tier 1 -->
+        <div class="slide-card rounded-2xl p-5 border-blue-500/40 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-[11px] font-mono font-bold text-sky-400">TIER 01</span>
+              <span class="text-[10px] font-bold uppercase tracking-wider bg-sky-950 text-sky-300 px-2 py-0.5 rounded border border-sky-800">Client UI</span>
+            </div>
+            <h3 class="text-sm font-bold text-white">React 19 + Vite 8.3</h3>
+            <p class="text-xs text-slate-400 font-mono mb-4">+ Tailwind CSS v4</p>
+            <div class="border-t border-slate-800 pt-3 space-y-2.5 text-xs text-slate-300">
+              <p class="font-bold text-sky-400 text-[11px] uppercase tracking-wider">Why This Stack:</p>
+              <ul class="space-y-2 text-slate-400 text-[11px] leading-relaxed">
+                <li class="flex items-start gap-1.5"><span class="text-sky-400">•</span> Sub-second HMR and 1.8s production builds via Vite modern module bundler.</li>
+                <li class="flex items-start gap-1.5"><span class="text-sky-400">•</span> React 19 concurrent rendering ensures fluid navigation across deep dashboards.</li>
+                <li class="flex items-start gap-1.5"><span class="text-sky-400">•</span> Tailwind CSS v4 provides zero-runtime utility styling with ultra-low bundle footprint.</li>
+                <li class="flex items-start gap-1.5"><span class="text-sky-400">•</span> Lucide React delivers unified, professional vector iconography without emojis.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tier 2 -->
+        <div class="slide-card rounded-2xl p-5 border-emerald-500/40 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-[11px] font-mono font-bold text-emerald-400">TIER 02</span>
+              <span class="text-[10px] font-bold uppercase tracking-wider bg-emerald-950 text-emerald-300 px-2 py-0.5 rounded border border-emerald-800">Backend</span>
+            </div>
+            <h3 class="text-sm font-bold text-white">Java 17 + Spring Boot 3/4</h3>
+            <p class="text-xs text-slate-400 font-mono mb-4">10 Domain Microservices</p>
+            <div class="border-t border-slate-800 pt-3 space-y-2.5 text-xs text-slate-300">
+              <p class="font-bold text-emerald-400 text-[11px] uppercase tracking-wider">Why This Stack:</p>
+              <ul class="space-y-2 text-slate-400 text-[11px] leading-relaxed">
+                <li class="flex items-start gap-1.5"><span class="text-emerald-400">•</span> Strong typing, memory safety, and high-concurrency throughput for enterprise LMS loads.</li>
+                <li class="flex items-start gap-1.5"><span class="text-emerald-400">•</span> 10 decoupled microservices allow isolated scaling (e.g. high-traffic assessments vs catalog).</li>
+                <li class="flex items-start gap-1.5"><span class="text-emerald-400">•</span> Spring Data JPA + MySQL/H2 ensures database-per-service isolation and ACID transactions.</li>
+                <li class="flex items-start gap-1.5"><span class="text-emerald-400">•</span> Production-ready metrics, health actuator endpoints, and automated tests.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tier 3 -->
+        <div class="slide-card rounded-2xl p-5 border-purple-500/40 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-[11px] font-mono font-bold text-purple-400">TIER 03</span>
+              <span class="text-[10px] font-bold uppercase tracking-wider bg-purple-950 text-purple-300 px-2 py-0.5 rounded border border-purple-800">Service Mesh</span>
+            </div>
+            <h3 class="text-sm font-bold text-white">Spring Cloud Gateway</h3>
+            <p class="text-xs text-slate-400 font-mono mb-4">+ Netflix Eureka & Config</p>
+            <div class="border-t border-slate-800 pt-3 space-y-2.5 text-xs text-slate-300">
+              <p class="font-bold text-purple-400 text-[11px] uppercase tracking-wider">Why This Stack:</p>
+              <ul class="space-y-2 text-slate-400 text-[11px] leading-relaxed">
+                <li class="flex items-start gap-1.5"><span class="text-purple-400">•</span> Centralized entry point (port 8080) with unified CORS, SSL termination, and rate limiting.</li>
+                <li class="flex items-start gap-1.5"><span class="text-purple-400">•</span> Netflix Eureka enables dynamic service discovery without hardcoded microservice IP addresses.</li>
+                <li class="flex items-start gap-1.5"><span class="text-purple-400">•</span> Stateless JWT authorization filter enforces zero-trust security at the perimeter.</li>
+                <li class="flex items-start gap-1.5"><span class="text-purple-400">•</span> Spring Cloud Config Server provides externalized, environment-specific configuration.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tier 4 -->
+        <div class="slide-card rounded-2xl p-5 border-amber-500/40 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-[11px] font-mono font-bold text-amber-400">TIER 04</span>
+              <span class="text-[10px] font-bold uppercase tracking-wider bg-amber-950 text-amber-300 px-2 py-0.5 rounded border border-amber-800">AI & Protocol</span>
+            </div>
+            <h3 class="text-sm font-bold text-white">Gemini 3.8 Flash + MCP</h3>
+            <p class="text-xs text-slate-400 font-mono mb-4">JSON-RPC 2.0 & Vector RAG</p>
+            <div class="border-t border-slate-800 pt-3 space-y-2.5 text-xs text-slate-300">
+              <p class="font-bold text-amber-400 text-[11px] uppercase tracking-wider">Why This Stack:</p>
+              <ul class="space-y-2 text-slate-400 text-[11px] leading-relaxed">
+                <li class="flex items-start gap-1.5"><span class="text-amber-400">•</span> Gemini 3.8 Flash offers state-of-the-art inference speed, reasoning, and tool calling fidelity.</li>
+                <li class="flex items-start gap-1.5"><span class="text-amber-400">•</span> Model Context Protocol (v2024-11-05) standardizes tool discovery and execution over JSON-RPC 2.0.</li>
+                <li class="flex items-start gap-1.5"><span class="text-amber-400">•</span> gemini-embedding-001 (3072 dimensions) enables high-precision semantic similarity.</li>
+                <li class="flex items-start gap-1.5"><span class="text-amber-400">•</span> Inter-agent Event Bus coordinates 6 autonomous agents without centralized bottlenecks.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================================================= -->
+    <!-- SLIDE 3: TIER-1 ENTERPRISE HIGH-LEVEL ARCHITECTURE (AMAZON / FLIPKART STYLE) -->
+    <!-- ========================================================================= -->
+    <section id="slide-3" class="hidden space-y-6">
+      <div class="space-y-1">
+        <span class="text-xs font-mono font-bold uppercase tracking-wider text-sky-400 bg-sky-950/70 border border-sky-800 px-2.5 py-0.5 rounded-full">
+          Slide 03 // Tier-1 Distributed Architecture (Amazon / Flipkart Standard)
+        </span>
+        <h2 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+          Tier-1 Enterprise High-Level Architecture (Full System Topology)
+        </h2>
+        <p class="text-sm text-slate-400 max-w-3xl">
+          Production-grade distributed architecture: Global Edge Ingress &rarr; Gateway & Service Mesh &rarr; 10 Domain Microservices &rarr; Async Event Broker & AI/MCP Mesh &rarr; Polyglot Persistence.
+        </p>
+      </div>
+
+      <!-- Architecture Card with Mermaid Diagram -->
+      <div class="slide-card rounded-2xl p-6 sm:p-8 border-slate-700/80 shadow-2xl space-y-6">
+        <div class="flex items-center justify-between pb-4 border-b border-slate-800">
+          <div class="flex items-center gap-3">
+            <span class="h-3 w-3 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span class="text-xs font-mono text-slate-300 font-bold">5-TIER ENTERPRISE CLOUD ARCHITECTURE</span>
+          </div>
+          <span class="text-xs font-mono text-sky-400 bg-sky-950/80 border border-sky-800 px-2.5 py-1 rounded">
+            Edge &bull; Gateway &bull; 10 Microservices &bull; Async Bus &bull; Polyglot DBs
+          </span>
+        </div>
+
+        <!-- Mermaid Diagram -->
+        <div class="bg-slate-950/90 rounded-xl p-4 border border-slate-800 overflow-x-auto text-xs">
+          <pre class="mermaid text-center">
+graph TD
+    %% =========================================================
+    %% TIER 1: CLIENT & GLOBAL EDGE INGRESS TIER
+    %% =========================================================
+    subgraph T1 ["TIER 1: CLIENT & GLOBAL EDGE INGRESS TIER (Amazon CloudFront / CDN & ALB Standard)"]
+        CLIENT["Web & Mobile Clients<br/>React 19 SPA (Port 5173)"]
+        ADMIN["Admin / Instructor Console<br/>Course Authoring & Analytics"]
+        STUDIO["AI & MCP Console<br/>Agent Swarm Sandbox"]
+        CDN["Global CloudFront CDN & WAF<br/>Edge Static Asset & Video Cache, DDoS Shield"]
+        ALB["Application Load Balancer (ALB)<br/>Layer 7 Ingress, TLS Offload (Port 443/8080)"]
+
+        CLIENT & ADMIN & STUDIO --> CDN --> ALB
+    end
+
+    %% =========================================================
+    %% TIER 2: API GATEWAY & CROSS-CUTTING SERVICE MESH
+    %% =========================================================
+    subgraph T2 ["TIER 2: API GATEWAY & GOVERNANCE MESH (Spring Cloud Gateway :8080)"]
+        GW["Spring Cloud API Gateway :8080<br/>Dynamic Path-Based Routing, CORS, SSL"]
+        JWT["JWT Token Security Filter<br/>Stateless Authentication & RBAC Guard"]
+        RATE["Resilience4j & Rate Limiter<br/>Circuit Breaker & Token Bucket Throttling"]
+        EUR["Netflix Eureka Registry :8761<br/>Service Discovery & Microservice Heartbeats"]
+        CFG["Spring Cloud Config :8888<br/>Centralized Git Externalized Configuration"]
+
+        ALB --> GW
+        GW --> JWT --> RATE
+        GW -.-> EUR
+        GW -.-> CFG
+    end
+
+    %% =========================================================
+    %% TIER 3: CORE DOMAIN MICROSERVICES CLUSTER
+    %% =========================================================
+    subgraph T3 ["TIER 3: CORE DOMAIN MICROSERVICES (Java 17 / Spring Boot 3/4 - DDD Bounded Contexts)"]
+        SVC_ID["Identity Service :8081<br/>Auth, JWT, BCrypt Credentials"]
+        SVC_CAT["Catalog Service :8082<br/>Courses, Modules, Lessons, Syllabi"]
+        SVC_PROG["Progress Service :8083<br/>Lesson State Tracker, % Metrics"]
+        SVC_ASS["Assessment Service :8084<br/>Timed Quizzes, Auto-Grading Engine"]
+        SVC_CERT["Certification Service :8085<br/>Digital Credentials & Verifier"]
+        SVC_ASGN["Assignment Service :8086<br/>Submissions & Rubric Evaluator"]
+        SVC_NOTIF["Notification Service :8087<br/>Milestone Alerts & User Badges"]
+
+        RATE -->|/auth| SVC_ID
+        RATE -->|/courses| SVC_CAT
+        RATE -->|/progress| SVC_PROG
+        RATE -->|/assessments| SVC_ASS
+        RATE -->|/certificates| SVC_CERT
+        RATE -->|/assignments| SVC_ASGN
+        RATE -->|/notifications| SVC_NOTIF
+    end
+
+    %% =========================================================
+    %% TIER 4: ASYNC EVENT BROKER & AI/MCP PROTOCOL MESH
+    %% =========================================================
+    subgraph T4 ["TIER 4: ASYNC EVENT BROKER & AI/MCP INTELLIGENCE MESH (Spec v2024-11-05)"]
+        BUS_EVENT["Asynchronous Event Broker<br/>Topics: quiz.submitted, course.completed, cert.issued"]
+        
+        MCP_C["LMS Catalog MCP Server<br/>(mcp://dlm.lms/catalog)"]
+        MCP_A["Learner Analytics MCP Server<br/>(mcp://dlm.lms/analytics)"]
+        MCP_Q["Assessment Engine MCP Server<br/>(mcp://dlm.lms/assessment)"]
+        MCP_K["RAG Vector Knowledge Server<br/>(mcp://dlm.lms/knowledge)"]
+        
+        SWARM["Autonomous Agent Event Bus<br/>6 Cooperating Agents (RAG, SkillGap, Socratic)"]
+        GEMINI["Google Gemini 3.8 Flash<br/>gemini-3.8-flash Function Calling & Reasoning"]
+
+        SVC_ASS & SVC_PROG & SVC_CERT -->|Publish Events| BUS_EVENT
+        BUS_EVENT -->|Trigger Milestone Notifications| SVC_NOTIF
+
+        SVC_CAT & SVC_PROG & SVC_ASS <-->|Live Sync via JSON-RPC 2.0| MCP_C & MCP_A & MCP_Q
+        MCP_C & MCP_A & MCP_Q & MCP_K <-->|Tools/Call & Resources/Read| SWARM
+        SWARM <-->|Grounded Prompts| GEMINI
+    end
+
+    %% =========================================================
+    %% TIER 5: POLYGLOT PERSISTENCE & STORAGE STRATEGY
+    %% =========================================================
+    subgraph T5 ["TIER 5: POLYGLOT PERSISTENCE TIER (Database-Per-Service + Vector Store + Cache)"]
+        DB_ID[("MySQL: identity_db<br/>ACID User Accounts")]
+        DB_CAT[("MySQL: catalog_db<br/>Syllabus Hierarchy")]
+        DB_PROG[("MySQL: progress_db<br/>Completion Records")]
+        DB_ASS[("MySQL: assessment_db<br/>Questions & Attempts")]
+        DB_CERT[("MySQL: cert_db<br/>Verification Hashes")]
+        DB_ASGN[("MySQL: assignment_db<br/>Rubrics & Scores")]
+        CACHE[("Distributed In-Memory Cache<br/>Sessions, Live Leaderboard ZSET")]
+        VEC[("Vector Database (3072d)<br/>gemini-embedding-001 Syllabi")]
+
+        SVC_ID --> DB_ID
+        SVC_CAT --> DB_CAT
+        SVC_PROG --> DB_PROG
+        SVC_ASS --> DB_ASS
+        SVC_CERT --> DB_CERT
+        SVC_ASGN --> DB_ASGN
+        SVC_ASS & SVC_PROG --> CACHE
+        MCP_K --> VEC
+    end
+
+    %% Styling
+    classDef t1 fill:#0c4a6e,stroke:#38bdf8,stroke-width:1.5px,color:#f8fafc;
+    classDef t2 fill:#312e81,stroke:#818cf8,stroke-width:1.5px,color:#f8fafc;
+    classDef t3 fill:#064e3b,stroke:#34d399,stroke-width:1.5px,color:#f8fafc;
+    classDef t4 fill:#451a03,stroke:#fbbf24,stroke-width:1.5px,color:#f8fafc;
+    classDef t5 fill:#4c0519,stroke:#fb7185,stroke-width:1.5px,color:#f8fafc;
+
+    class CLIENT,ADMIN,STUDIO,CDN,ALB t1;
+    class GW,JWT,RATE,EUR,CFG t2;
+    class SVC_ID,SVC_CAT,SVC_PROG,SVC_ASS,SVC_CERT,SVC_ASGN,SVC_NOTIF t3;
+    class BUS_EVENT,MCP_C,MCP_A,MCP_Q,MCP_K,SWARM,GEMINI t4;
+    class DB_ID,DB_CAT,DB_PROG,DB_ASS,DB_CERT,DB_ASGN,CACHE,VEC t5;
+          </pre>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Slide Footer Controls -->
+  <footer class="max-w-7xl w-full mx-auto flex items-center justify-between pt-6 border-t border-slate-800 text-xs text-slate-500 font-mono">
+    <div class="flex items-center gap-2">
+      <span class="inline-block h-2 w-2 rounded-full bg-emerald-500"></span>
+      <span>DLM Executive Presentation // Tier-1 Enterprise HLA Architecture</span>
+    </div>
+    <div class="flex items-center gap-4">
+      <span>PowerPoint File: <strong>Digital_Learning_Mentor_DLM_Presentation.pptx</strong></span>
+      <span class="text-slate-600">|</span>
+      <span>Use Keyboard &larr; &rarr; to Switch Slides</span>
+    </div>
+  </footer>
+
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      themeVariables: {
+        darkMode: true,
+        background: '#0B0F19',
+        primaryColor: '#1E293B',
+        primaryTextColor: '#F8FAFC',
+        primaryBorderColor: '#38BDF8',
+        lineColor: '#64748B',
+        secondaryColor: '#0F172A',
+        tertiaryColor: '#1E1B4B'
+      }
+    });
+
+    let currentSlide = 1;
+
+    function goToSlide(n) {
+      currentSlide = n;
+      document.getElementById('slide-1').classList.toggle('hidden', n !== 1);
+      document.getElementById('slide-2').classList.toggle('hidden', n !== 2);
+      document.getElementById('slide-3').classList.toggle('hidden', n !== 3);
+
+      for (let i = 1; i <= 3; i++) {
+        const btn = document.getElementById(`btn-${i}`);
+        if (i === n) {
+          btn.className = "px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 text-white transition-all shadow-sm";
+        } else {
+          btn.className = "px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition-all";
+        }
+      }
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') {
+        goToSlide(currentSlide === 3 ? 1 : currentSlide + 1);
+      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+        goToSlide(currentSlide === 1 ? 3 : currentSlide - 1);
+      }
+    });
+  </script>
+</body>
+</html>

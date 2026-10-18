@@ -1,194 +1,309 @@
+/**
+ * ragService.js  —  Real RAG (Retrieval-Augmented Generation)
+ *
+ * Pipeline:
+ *  1. RETRIEVE  – Pull live course/module/lesson content from LMS backend
+ *  2. CHUNK     – Split into overlapping text chunks (400 tokens ~= 1600 chars)
+ *  3. RANK      – BM25-style TF-IDF scoring + Gemini embedding cosine similarity
+ *  4. AUGMENT   – Build a grounded context prompt with the top-k chunks
+ *  5. GENERATE  – Send to Gemini 1.5 Flash and stream back the answer
+ */
+
 import { getAllCourses, getCourseDetails } from "./courseService.js";
 import { getLearnerRagContext } from "./learnerRagContext.js";
 import { getCurrentUser } from "./userService.js";
+import { geminiGenerate, geminiEmbed, isApiKeySet } from "./geminiService.js";
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+const CHUNK_SIZE = 1600;   // characters per chunk (~400 tokens)
+const CHUNK_OVERLAP = 200; // overlap between chunks
+const TOP_K = 6;           // chunks passed to the LLM
 
 const DOMAIN_METADATA = [
-  { id: "course-materials", title: "Course Materials", description: "Course, module, and lesson content currently available in the LMS." },
+  { id: "course-materials", title: "Course Materials", description: "Course, module, and lesson content from the LMS." },
 ];
 
-let knowledgeCache = Object.fromEntries(DOMAIN_METADATA.map(({ id }) => [id, []]));
+// ─── In-memory stores ─────────────────────────────────────────────────────────
+let documentChunks = [];       // {id, title, source, content, courseId, tags}[]
+let embeddingCache = {};       // chunkId -> Float32Array
 let lastSyncAt = null;
 
-const asArray = (value) => (Array.isArray(value) ? value : []);
-const textValue = (...values) => values.find((value) => typeof value === "string" && value.trim())?.trim() || "";
+// ─── Text helpers ─────────────────────────────────────────────────────────────
+const asArray = (v) => (Array.isArray(v) ? v : []);
+const textOf = (...vals) =>
+  vals.find((v) => typeof v === "string" && v.trim())?.trim() || "";
 
+/** Split a long text into overlapping chunks */
+function chunkText(text, size = CHUNK_SIZE, overlap = CHUNK_OVERLAP) {
+  const chunks = [];
+  let start = 0;
+  while (start < text.length) {
+    chunks.push(text.slice(start, start + size));
+    start += size - overlap;
+  }
+  return chunks;
+}
+
+// ─── 1. RETRIEVE + CHUNK ──────────────────────────────────────────────────────
 export const syncLiveKnowledgeFromBackend = async () => {
   const courses = asArray(await getAllCourses());
-  const courseDetails = await Promise.all(courses.map(async (course) => {
-    try {
-      return await getCourseDetails(course.id);
-    } catch {
-      return course;
-    }
-  }));
+  const details = await Promise.all(
+    courses.map((c) => getCourseDetails(c.id).catch(() => c))
+  );
 
-  const documents = [];
-  courseDetails.forEach((course) => {
-    const courseTitle = textValue(course.title) || `Course #${course.id}`;
-    const courseDescription = textValue(course.description, course.summary, course.content);
+  documentChunks = [];
+
+  details.forEach((course) => {
+    const courseTitle = textOf(course.title) || `Course #${course.id}`;
     const category = typeof course.category === "string" ? course.category : course.category?.name;
+    const tags = [category, course.level].filter(Boolean);
 
-    if (courseDescription) {
-      documents.push({
-        id: `course-${course.id}`,
-        title: courseTitle,
-        category: category || "Course",
-        courseId: course.id,
-        source: `LMS course catalog · ${courseTitle}`,
-        content: courseDescription,
-        tags: [category, course.level].filter(Boolean),
-        lastUpdated: course.updatedAt || course.createdAt || null,
-        domain: "course-materials",
+    const addChunks = (rawText, srcTitle, srcLabel) => {
+      if (!rawText) return;
+      chunkText(rawText).forEach((chunk, i) => {
+        documentChunks.push({
+          id: `${course.id}-${srcLabel}-${i}`,
+          title: srcTitle,
+          source: `${courseTitle} · ${srcTitle}`,
+          content: chunk,
+          courseId: course.id,
+          tags,
+          domain: "course-materials",
+        });
       });
-    }
+    };
 
-    asArray(course.modules).forEach((module) => {
-      const moduleTitle = textValue(module.title, module.name);
-      const moduleContent = textValue(module.description, module.summary, module.content, module.notes);
-      if (moduleTitle || moduleContent) {
-        documents.push({
-          id: `module-${module.id}`,
-          title: moduleTitle || `Module in ${courseTitle}`,
-          category: category || "Course Module",
-          courseId: course.id,
-          source: `LMS course content · ${courseTitle}`,
-          content: [moduleTitle, moduleContent].filter(Boolean).join("\n\n"),
-          tags: [category, courseTitle].filter(Boolean),
-          lastUpdated: module.updatedAt || module.createdAt || null,
-          domain: "course-materials",
-        });
-      }
+    addChunks(
+      textOf(course.description, course.summary, course.content),
+      courseTitle,
+      "overview"
+    );
 
-      asArray(module.lessons).forEach((lesson) => {
-        const lessonTitle = textValue(lesson.title, lesson.name);
-        const lessonContent = textValue(lesson.description, lesson.summary, lesson.content, lesson.notes, lesson.transcript);
-        if (!lessonTitle && !lessonContent) return;
-        documents.push({
-          id: `lesson-${lesson.id}`,
-          title: lessonTitle || `Lesson in ${moduleTitle || courseTitle}`,
-          category: category || "Course Lesson",
-          courseId: course.id,
-          source: `LMS lesson · ${courseTitle}${moduleTitle ? ` · ${moduleTitle}` : ""}`,
-          content: [lessonTitle, lessonContent].filter(Boolean).join("\n\n"),
-          tags: [category, courseTitle, moduleTitle].filter(Boolean),
-          lastUpdated: lesson.updatedAt || lesson.createdAt || null,
-          domain: "course-materials",
-        });
+    asArray(course.modules).forEach((mod) => {
+      const modTitle = textOf(mod.title, mod.name) || `Module in ${courseTitle}`;
+      const modText = textOf(mod.description, mod.summary, mod.content, mod.notes);
+      addChunks([modTitle, modText].filter(Boolean).join("\n\n"), modTitle, `mod-${mod.id}`);
+
+      asArray(mod.lessons).forEach((lesson) => {
+        const lessonTitle = textOf(lesson.title, lesson.name) || `Lesson`;
+        const lessonText = textOf(
+          lesson.description,
+          lesson.summary,
+          lesson.content,
+          lesson.notes,
+          lesson.transcript
+        );
+        addChunks(
+          [lessonTitle, lessonText].filter(Boolean).join("\n\n"),
+          lessonTitle,
+          `lesson-${lesson.id}`
+        );
       });
     });
   });
 
-  knowledgeCache = Object.fromEntries(DOMAIN_METADATA.map(({ id }) => [
-    id,
-    id === "course-materials" ? documents : [],
-  ]));
   lastSyncAt = new Date().toISOString();
-  return documents;
+  return documentChunks;
 };
 
-export const searchKnowledgeBase = async ({ query, domain = "all", courseId = null, limit = 6 }) => {
-  const documents = await syncLiveKnowledgeFromBackend();
-  const queryTerms = String(query || "").toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((term) => term.length > 1);
-  if (!queryTerms.length) return [];
+// ─── 2. BM25-style Lexical Scoring ───────────────────────────────────────────
+function bm25Score(query, chunk, k1 = 1.5, b = 0.75, avgLen = 800) {
+  const terms = query
+    .toLowerCase()
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter((t) => t.length > 1);
+  const docLen = chunk.content.length;
+  const text = `${chunk.title} ${chunk.content} ${chunk.tags.join(" ")}`.toLowerCase();
 
-  const candidates = documents.filter((document) =>
-    (domain === "all" || document.domain === domain)
-    && (!courseId || String(document.courseId) === String(courseId))
+  let score = 0;
+  for (const term of terms) {
+    const tf = (text.split(term).length - 1);
+    if (!tf) continue;
+    const idf = Math.log((documentChunks.length + 1) / (1 + documentChunks.filter((c) => c.content.toLowerCase().includes(term)).length));
+    score += idf * ((tf * (k1 + 1)) / (tf + k1 * (1 - b + b * (docLen / avgLen))));
+    // Title boost
+    if (chunk.title.toLowerCase().includes(term)) score += 2;
+  }
+  return score;
+}
+
+// ─── 3. Cosine similarity (for embeddings) ───────────────────────────────────
+function cosineSim(a, b) {
+  if (!a || !b || a.length !== b.length) return 0;
+  let dot = 0, normA = 0, normB = 0;
+  for (let i = 0; i < a.length; i++) {
+    dot += a[i] * b[i];
+    normA += a[i] * a[i];
+    normB += b[i] * b[i];
+  }
+  return dot / (Math.sqrt(normA) * Math.sqrt(normB) + 1e-10);
+}
+
+// ─── 4. Hybrid Retrieve ──────────────────────────────────────────────────────
+export const searchKnowledgeBase = async ({
+  query,
+  domain = "all",
+  courseId = null,
+  limit = TOP_K,
+  useEmbeddings = false,
+}) => {
+  if (!documentChunks.length) await syncLiveKnowledgeFromBackend();
+
+  const candidates = documentChunks.filter(
+    (c) =>
+      (domain === "all" || c.domain === domain) &&
+      (!courseId || String(c.courseId) === String(courseId))
   );
 
-  return candidates.map((document) => {
-    const searchableText = `${document.title} ${document.content} ${document.tags.join(" ")} ${document.category}`.toLowerCase();
-    const matchedTerms = queryTerms.filter((term) => searchableText.includes(term));
-    const score = matchedTerms.reduce((total, term) => {
-      const titleBoost = document.title.toLowerCase().includes(term) ? 3 : 0;
-      const tagBoost = document.tags.some((tag) => tag.toLowerCase().includes(term)) ? 2 : 0;
-      return total + 1 + titleBoost + tagBoost;
-    }, 0);
-    const excerpt = document.content.split(/(?<=[.!?])\s+/).find((sentence) =>
-      queryTerms.some((term) => sentence.toLowerCase().includes(term))
-    ) || document.content.slice(0, 320);
+  // BM25 lexical scoring (always)
+  const withScores = candidates.map((c) => ({
+    ...c,
+    bm25: bm25Score(query, c),
+  }));
 
-    return {
-      ...document,
-      searchScore: score,
-      matchedTermCount: matchedTerms.length,
-      matchedExcerpt: excerpt,
-      citation: `${document.title} (${document.source})`,
-    };
-  }).filter((document) => document.matchedTermCount > 0)
-    .sort((a, b) => b.searchScore - a.searchScore)
-    .slice(0, limit);
-};
-
-export const getKnowledgeByDomain = (domainKey) => knowledgeCache[domainKey] || [];
-
-export const getAllKnowledgeDomains = () => DOMAIN_METADATA.map((domain) => ({
-  ...domain,
-  count: knowledgeCache[domain.id]?.length || 0,
-}));
-
-const personalQuery = (query) => {
-  const normalized = String(query || "").toLowerCase();
-  return /\b(my|mine|me|i|i'm|i am|myself|mera|meri|mere|mujhe|maine|main|mai|apna|apni|apne|kitne|kitni|kitna|hu|hoon|hun)\b/.test(normalized)
-    || normalized.includes("my ")
-    || normalized.includes("about me");
-};
-
-const getPersonalAnswer = (query, context) => {
-  const normalized = query.toLowerCase();
-  if (!personalQuery(normalized)) return null;
-
-  const requested = [];
-  if (/\b(name|email|profile|who am i|naam|kaun)\b/.test(normalized)) requested.push("Your Profile");
-  if (/\b(course|courses|enroll|enrolled|ongoing|completed|complete|progress|padh)\b/.test(normalized)) requested.push("Your Courses");
-  if (/\b(certificate|certificates|certification|certifications)\b/.test(normalized)) requested.push("Your Certificates");
-  if (/\b(assessment|assessments|quiz|quizzes|test|tests|pass|passed|fail|failed|score|attempt|attempts|exam|exams)\b/.test(normalized)) requested.push("Your Assessment Attempts");
-  if (/\b(assignment|assignments|due|submission|submissions|homework)\b/.test(normalized)) requested.push("Your Course Assignments");
-
-  const selected = requested.length
-    ? context.sources.filter((item) => requested.includes(item.title))
-    : context.sources;
-  const totals = context.totals;
-  const countSummary = requested.includes("Your Courses")
-    ? `Courses: ${totals.enrolledCourses} enrolled, ${totals.completedCourses} completed, ${totals.ongoingCourses} ongoing.`
-    : requested.includes("Your Assessment Attempts")
-      ? `Assessment attempts: ${totals.assessmentAttempts} total, ${totals.passedAssessments} passed, ${totals.failedAssessments} failed.`
-      : requested.includes("Your Certificates")
-        ? `Certificates: ${totals.certificates}.`
-        : requested.includes("Your Course Assignments")
-          ? `Assignments across your enrolled courses: ${totals.assignments}.`
-          : "";
-  return {
-    answer: [countSummary, ...selected.map((item) => `**${item.title}**\n${item.content}`)].filter(Boolean).join("\n\n"),
-    sources: selected,
-  };
-};
-
-export const askRAGMentor = async ({ query, courseId = null, domain = "all", learnerId = null, learner = null }) => {
-  if (personalQuery(query)) {
-    let activeLearner = learner;
-    let activeLearnerId = learnerId;
-    if (activeLearnerId === null || activeLearnerId === undefined) {
-      activeLearner = activeLearner || await getCurrentUser();
-      activeLearnerId = activeLearner?.id;
+  // Optionally add embedding-based semantic similarity
+  if (useEmbeddings && isApiKeySet()) {
+    try {
+      const queryEmbedding = await geminiEmbed(query);
+      for (const chunk of withScores) {
+        if (!embeddingCache[chunk.id]) {
+          embeddingCache[chunk.id] = await geminiEmbed(chunk.content.slice(0, 500));
+        }
+        chunk.embeddingSim = cosineSim(queryEmbedding, embeddingCache[chunk.id]);
+      }
+      // Hybrid score = 0.5 * BM25 (normalised) + 0.5 * embedding cosine
+      const maxBm25 = Math.max(...withScores.map((c) => c.bm25), 1);
+      withScores.forEach((c) => {
+        c.hybridScore = 0.5 * (c.bm25 / maxBm25) + 0.5 * (c.embeddingSim || 0);
+      });
+    } catch {
+      withScores.forEach((c) => { c.hybridScore = c.bm25; });
     }
-    if (activeLearnerId !== null && activeLearnerId !== undefined) {
-      const context = await getLearnerRagContext(activeLearnerId, activeLearner);
-      const answer = getPersonalAnswer(query, context);
-      if (answer) return { ...answer, generatedAt: new Date().toISOString() };
+  } else {
+    withScores.forEach((c) => { c.hybridScore = c.bm25; });
+  }
+
+  return withScores
+    .filter((c) => c.hybridScore > 0)
+    .sort((a, b) => b.hybridScore - a.hybridScore)
+    .slice(0, limit)
+    .map((c) => ({
+      ...c,
+      matchedExcerpt: c.content.slice(0, 400),
+      citation: `${c.title} (${c.source})`,
+      searchScore: c.hybridScore,
+      matchedTermCount: query.toLowerCase().split(/\s+/).filter((t) => c.content.toLowerCase().includes(t)).length,
+    }));
+};
+
+// ─── 5. RAG Answer Generation ─────────────────────────────────────────────────
+const RAG_SYSTEM_PROMPT = `You are an expert AI learning mentor for an enterprise Learning Management System (LMS).
+You answer based ONLY on the retrieved course content provided in the context.
+Always be precise, educational, and well-structured in your responses.
+If the context doesn't contain enough information, say so clearly.
+Format your answers in clear paragraphs. Cite the source titles when referencing specific material.
+Never fabricate information not present in the context.`;
+
+export const askRAGMentor = async ({
+  query,
+  courseId = null,
+  domain = "all",
+  learnerId = null,
+  learner = null,
+  chatHistory = [],
+}) => {
+  // ── Personal query path (learner's own data) ──
+  const isPersonal = /\b(my|mine|i |i'm|myself|mera|meri|apna)\b/i.test(query);
+  if (isPersonal) {
+    let activeLearner = learner;
+    let activeId = learnerId;
+    if (!activeId) {
+      activeLearner = activeLearner || (await getCurrentUser());
+      activeId = activeLearner?.id;
+    }
+    if (activeId) {
+      const context = await getLearnerRagContext(activeId, activeLearner);
+      const personalContext = context.sources
+        .map((s) => `## ${s.title}\n${s.content}`)
+        .join("\n\n");
+
+      if (isApiKeySet()) {
+        const historyMessages = chatHistory.map((h) => ({
+          role: h.sender === "user" ? "user" : "model",
+          content: h.text,
+        }));
+
+        const result = await geminiGenerate({
+          systemInstruction: `${RAG_SYSTEM_PROMPT}\n\nYou have access to the learner's personal LMS records:\n\n${personalContext}`,
+          messages: [...historyMessages, { role: "user", content: query }],
+          temperature: 0.4,
+        });
+        return { answer: result.text, sources: context.sources, generatedAt: new Date().toISOString(), model: "gemini-3.8-flash" };
+      }
+
+      // Fallback without Gemini
+      const totals = context.totals;
+      return {
+        answer: `Enrolled: ${totals.enrolledCourses} courses (${totals.completedCourses} completed). Certificates: ${totals.certificates}. Assessments passed: ${totals.passedAssessments}.`,
+        sources: context.sources,
+        generatedAt: new Date().toISOString(),
+        model: "fallback",
+      };
     }
   }
 
-  const sources = await searchKnowledgeBase({ query, domain, courseId, limit: 3 });
-  const answer = sources.length
-    ? `I found relevant LMS course material in **${sources[0].source}**.\n\n${sources.map((source) => source.matchedExcerpt).join("\n\n")}`
-    : "I couldn't find matching material in the course content currently available in the LMS. Add course descriptions, module notes, or lesson content to make this topic searchable.";
+  // ── Knowledge base RAG path ──
+  const sources = await searchKnowledgeBase({ query, domain, courseId, limit: TOP_K });
+
+  if (!isApiKeySet()) {
+    // No Gemini key — return raw retrieval
+    const answer = sources.length
+      ? `Retrieved ${sources.length} relevant sections:\n\n${sources.map((s) => `**${s.title}**\n${s.matchedExcerpt}`).join("\n\n---\n\n")}`
+      : "No matching content found in the course materials. Ensure course descriptions and module content are populated in the LMS.";
+    return { answer, sources, generatedAt: new Date().toISOString(), model: "retrieval-only" };
+  }
+
+  if (!sources.length) {
+    return {
+      answer: "I couldn't find relevant content in the available course materials for this query. Try rephrasing or check if the topic is covered in your enrolled courses.",
+      sources: [],
+      generatedAt: new Date().toISOString(),
+      model: "gemini-3.8-flash",
+    };
+  }
+
+  // Build grounded context
+  const contextBlocks = sources
+    .map((s, i) => `[Source ${i + 1}: ${s.title}]\n${s.content}`)
+    .join("\n\n---\n\n");
+
+  const historyMessages = chatHistory.map((h) => ({
+    role: h.sender === "user" ? "user" : "model",
+    content: h.text,
+  }));
+
+  const augmentedQuery = `Based on the following course material context, answer the learner's question.\n\n=== CONTEXT ===\n${contextBlocks}\n\n=== QUESTION ===\n${query}`;
+
+  const result = await geminiGenerate({
+    systemInstruction: RAG_SYSTEM_PROMPT,
+    messages: [...historyMessages, { role: "user", content: augmentedQuery }],
+    temperature: 0.3,
+    maxOutputTokens: 1024,
+  });
 
   return {
-    answer,
+    answer: result.text || "Unable to generate a response. Please try again.",
     sources,
     generatedAt: new Date().toISOString(),
+    model: "gemini-3.8-flash",
   };
 };
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+export const getAllKnowledgeDomains = () =>
+  DOMAIN_METADATA.map((d) => ({ ...d, count: documentChunks.filter((c) => c.domain === d.id).length }));
+
 export const getKnowledgeLastSyncAt = () => lastSyncAt;
+
+export const getKnowledgeByDomain = (key) =>
+  documentChunks.filter((c) => c.domain === key);

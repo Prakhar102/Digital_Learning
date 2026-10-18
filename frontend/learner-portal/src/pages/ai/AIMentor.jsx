@@ -3,13 +3,24 @@ import { useLocation } from "react-router-dom";
 import {
   Bot,
   Send,
-  Sparkles,
+  User,
+  BookOpen,
+  RefreshCw,
+  ChevronDown,
+  Database,
+  Cpu,
+  FileText,
   CheckCircle2,
+  AlertCircle,
+  Key,
+  ExternalLink,
+  Layers,
+  Clock,
 } from "lucide-react";
-import DashboardLayout from "../../components/dashboard/DashboardLayout";
-import { askRAGMentor, getAllKnowledgeDomains } from "../../services/ragService";
+import { askRAGMentor, getAllKnowledgeDomains, syncLiveKnowledgeFromBackend } from "../../services/ragService";
 import { getAllCourses } from "../../services/courseService";
 import { getCurrentUser } from "../../services/userService";
+import { isApiKeySet } from "../../services/geminiService";
 
 function AIMentor() {
   const location = useLocation();
@@ -20,208 +31,300 @@ function AIMentor() {
   const [selectedCourseId, setSelectedCourseId] = useState("");
   const [isThinking, setIsThinking] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
+  const [apiKeyReady, setApiKeyReady] = useState(false);
+  const [chunkCount, setChunkCount] = useState(0);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [showApiSetup, setShowApiSetup] = useState(false);
+  const [apiKeyInput, setApiKeyInput] = useState("");
   const chatEndRef = useRef(null);
+  const inputRef = useRef(null);
 
   const domains = getAllKnowledgeDomains();
 
   useEffect(() => {
-    loadContext();
+    boot();
   }, []);
 
-  async function loadContext() {
+  async function boot() {
+    setApiKeyReady(isApiKeySet());
     try {
-      const [u, cList] = await Promise.allSettled([
-        getCurrentUser(),
-        getAllCourses(),
-      ]);
+      const [u, cList] = await Promise.allSettled([getCurrentUser(), getAllCourses()]);
       if (u.status === "fulfilled") setCurrentUser(u.value);
-      if (cList.status === "fulfilled" && Array.isArray(cList.value)) {
-        setCourses(cList.value);
-      }
+      if (cList.status === "fulfilled" && Array.isArray(cList.value)) setCourses(cList.value);
 
-      // Check URL query parameters
       const params = new URLSearchParams(location.search);
       const q = params.get("query");
-      if (q) {
-        setInputQuery(q);
-      }
+      if (q) setInputQuery(q);
 
-      // Welcome initial message
+      // Sync knowledge base
+      setIsSyncing(true);
+      const chunks = await syncLiveKnowledgeFromBackend();
+      setChunkCount(chunks.length);
+      setIsSyncing(false);
+
       setMessages([
         {
-          id: "welcome-1",
+          id: "welcome",
           sender: "ai",
-          text: `Hello ${u.value?.fullName || "Learner"}! I can retrieve matching text from course content and look up records for the signed-in learner. This workspace has no connected language model, so answers are limited to source records and excerpts. What would you like to search?`,
+          text: `Hello ${u.value?.fullName || "Learner"}! I am your RAG Mentor powered by Google Gemini. I retrieve content from ${chunks.length} indexed sections of your course materials and generate grounded answers.\n\nI can answer questions about:\n- Course concepts and content\n- Your learning progress and records\n- Assessment topics\n- Career paths in the LMS catalog`,
           citations: [],
+          model: isApiKeySet() ? "gemini-3.8-flash" : "retrieval-only",
           timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         },
       ]);
     } catch (e) {
       console.error(e);
+      setIsSyncing(false);
     }
-  };
+  }
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isThinking]);
 
+  const saveApiKey = () => {
+    if (apiKeyInput.trim()) {
+      localStorage.setItem("GEMINI_API_KEY", apiKeyInput.trim());
+      setApiKeyReady(true);
+      setShowApiSetup(false);
+      setApiKeyInput("");
+    }
+  };
+
   const handleSendMessage = async (e) => {
     if (e) e.preventDefault();
     if (!inputQuery.trim() || isThinking) return;
 
+    const queryToSend = inputQuery.trim();
     const userMsg = {
       id: `user-${Date.now()}`,
       sender: "user",
-      text: inputQuery.trim(),
+      text: queryToSend,
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     };
 
     setMessages((prev) => [...prev, userMsg]);
-    const queryToSend = inputQuery.trim();
     setInputQuery("");
     setIsThinking(true);
 
     try {
+      const chatHistory = messages.filter((m) => m.sender !== "system");
       const result = await askRAGMentor({
         query: queryToSend,
         domain: selectedDomain,
         courseId: selectedCourseId || null,
         learnerId: currentUser?.id,
         learner: currentUser,
+        chatHistory,
       });
 
-      const aiMsg = {
-        id: `ai-${Date.now()}`,
-        sender: "ai",
-        text: result.answer,
-        citations: result.sources || [],
-        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-      };
-
-      setMessages((prev) => [...prev, aiMsg]);
-    } catch (err) {
-      console.error(err);
       setMessages((prev) => [
         ...prev,
         {
           id: `ai-${Date.now()}`,
           sender: "ai",
-          text: `The LMS retrieval request failed: ${err?.message || "The data source is unavailable."}`,
+          text: result.answer,
+          citations: result.sources || [],
+          model: result.model,
+          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        },
+      ]);
+    } catch (err) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `err-${Date.now()}`,
+          sender: "ai",
+          text: `Error: ${err?.message || "Request failed. Check your API key and try again."}`,
           citations: [],
+          model: "error",
           timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         },
       ]);
     } finally {
       setIsThinking(false);
+      setTimeout(() => inputRef.current?.focus(), 100);
     }
   };
 
-  const samplePrompts = courses.slice(0, 4).map((course) => ({ title: course.title, query: course.title, domain: "course-materials" }));
+  const quickPrompts = [
+    "Explain the main concepts in my enrolled courses",
+    "What are my current learning gaps?",
+    "Summarize my learning progress",
+    "What topics are covered in this course?",
+  ];
 
   return (
-    <DashboardLayout>
-      <div className="p-8 max-w-6xl mx-auto space-y-6 flex flex-col h-[calc(100vh-2rem)]">
-        {/* ── Top Bar / Header ── */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200 shrink-0">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="px-2 py-0.5 text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-200 rounded uppercase tracking-wider">
-                LMS Course Content Search
-              </span>
+    <div className="flex flex-col h-[calc(100vh-4rem)] bg-slate-50">
+      {/* ── Header ── */}
+      <div className="bg-white border-b border-slate-200 px-6 py-4 shrink-0">
+        <div className="max-w-5xl mx-auto flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-sm">
+              <Bot size={20} />
             </div>
-            <h1 className="text-xl font-bold tracking-tight text-slate-900 mt-1">
-              Course Content and Learner Record Lookup
-            </h1>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-base font-bold text-slate-900">RAG Mentor</h1>
+              </div>
+              <div className="flex items-center gap-3 mt-0.5">
+                <span className="flex items-center gap-1 text-[11px] text-slate-500">
+                  <Database size={10} />
+                  {isSyncing ? "Indexing..." : `${chunkCount} chunks indexed`}
+                </span>
+                <span className={`flex items-center gap-1 text-[11px] font-medium ${apiKeyReady ? "text-emerald-600" : "text-amber-600"}`}>
+                  <div className={`h-1.5 w-1.5 rounded-full ${apiKeyReady ? "bg-emerald-500" : "bg-amber-500"}`} />
+                  {apiKeyReady ? "Gemini connected" : "No API key"}
+                </span>
+              </div>
+            </div>
           </div>
 
-          {/* Scope Filters */}
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2">
+            {/* Scope selectors */}
             <select
               value={selectedDomain}
               onChange={(e) => setSelectedDomain(e.target.value)}
-              className="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-800 focus:outline-none focus:border-blue-600 shadow-xs"
+              className="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-700 focus:outline-none focus:border-blue-500 shadow-sm"
             >
-              <option value="all">All available LMS content</option>
-              {domains.map((domain) => <option key={domain.id} value={domain.id}>{domain.title}</option>)}
+              <option value="all">All content</option>
+              {domains.map((d) => (
+                <option key={d.id} value={d.id}>{d.title} ({d.count})</option>
+              ))}
             </select>
-
             <select
               value={selectedCourseId}
               onChange={(e) => setSelectedCourseId(e.target.value)}
-              className="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-800 focus:outline-none focus:border-blue-600 shadow-xs"
+              className="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-700 focus:outline-none focus:border-blue-500 shadow-sm"
             >
-              <option value="">All Courses Context</option>
+              <option value="">All courses</option>
               {courses.map((c) => (
-                <option key={c.id} value={c.id}>
-                  Course #{c.id}: {c.title}
-                </option>
+                <option key={c.id} value={c.id}>{c.title}</option>
               ))}
             </select>
+
+            {!apiKeyReady && (
+              <button
+                onClick={() => setShowApiSetup(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-700 text-xs font-semibold rounded-lg transition-colors"
+              >
+                <Key size={13} />
+                Set API Key
+              </button>
+            )}
+
+            <button
+              onClick={() => { setIsSyncing(true); syncLiveKnowledgeFromBackend().then((c) => { setChunkCount(c.length); setIsSyncing(false); }); }}
+              className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
+              title="Re-index knowledge base"
+            >
+              <RefreshCw size={15} className={isSyncing ? "animate-spin" : ""} />
+            </button>
           </div>
         </div>
+      </div>
 
-        {/* ── Chat Messages Stream ── */}
-        <div className="flex-1 bg-white border border-slate-200/80 rounded-2xl p-6 overflow-y-auto space-y-5 shadow-xs">
+      {/* ── API Key Setup Banner ── */}
+      {showApiSetup && (
+        <div className="bg-amber-50 border-b border-amber-200 px-6 py-4 shrink-0">
+          <div className="max-w-5xl mx-auto">
+            <div className="flex items-start gap-3">
+              <Key size={16} className="text-amber-600 mt-0.5 shrink-0" />
+              <div className="flex-1">
+                <p className="text-xs font-bold text-amber-900">Configure Gemini API Key</p>
+                <p className="text-[11px] text-amber-700 mt-0.5">
+                  Get a free key at{" "}
+                  <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="underline font-semibold">
+                    aistudio.google.com
+                  </a>
+                  {" "}or set VITE_GEMINI_API_KEY in your .env file.
+                </p>
+                <div className="flex items-center gap-2 mt-2">
+                  <input
+                    type="password"
+                    value={apiKeyInput}
+                    onChange={(e) => setApiKeyInput(e.target.value)}
+                    placeholder="AIza..."
+                    className="flex-1 bg-white border border-amber-300 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-amber-500"
+                    onKeyDown={(e) => e.key === "Enter" && saveApiKey()}
+                  />
+                  <button onClick={saveApiKey} className="px-4 py-1.5 bg-amber-600 text-white text-xs font-semibold rounded-lg hover:bg-amber-700 transition-colors">
+                    Save
+                  </button>
+                  <button onClick={() => setShowApiSetup(false)} className="px-3 py-1.5 text-amber-700 text-xs hover:bg-amber-100 rounded-lg transition-colors">
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Chat Messages ── */}
+      <div className="flex-1 overflow-y-auto px-6 py-6">
+        <div className="max-w-5xl mx-auto space-y-6">
           {messages.map((m) => {
             const isUser = m.sender === "user";
-
             return (
-              <div
-                key={m.id}
-                className={`flex gap-3.5 ${isUser ? "justify-end" : "justify-start"}`}
-              >
+              <div key={m.id} className={`flex gap-3 ${isUser ? "justify-end" : "justify-start"}`}>
                 {!isUser && (
-                  <div className="h-9 w-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-                    <Bot size={18} />
+                  <div className="h-8 w-8 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-sm mt-1">
+                    <Bot size={16} />
                   </div>
                 )}
 
-                <div
-                  className={`max-w-2xl rounded-2xl p-4.5 space-y-3 text-xs leading-relaxed ${
-                    isUser
-                      ? "bg-blue-600 text-white font-medium rounded-tr-xs"
-                      : "bg-slate-50 border border-slate-200/80 text-slate-800 rounded-tl-xs"
-                  }`}
-                >
-                  <p className="whitespace-pre-line">{m.text}</p>
+                <div className={`max-w-3xl space-y-3 ${isUser ? "items-end" : "items-start"} flex flex-col`}>
+                  <div className={`rounded-2xl px-4 py-3.5 text-[13px] leading-relaxed shadow-sm ${isUser
+                      ? "bg-blue-600 text-white rounded-tr-sm"
+                      : "bg-white border border-slate-200 text-slate-800 rounded-tl-sm"
+                    }`}>
+                    <p className="whitespace-pre-wrap">{m.text}</p>
 
-                  {/* Verified Citations List */}
-                  {!isUser && m.citations && m.citations.length > 0 && (
-                    <div className="pt-3 border-t border-slate-200/70 space-y-2">
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
-                        <CheckCircle2 size={12} className="text-emerald-600" />
-                        LMS Sources ({m.citations.length})
-                      </p>
-                      <div className="space-y-1.5">
-                        {m.citations.map((src, sIdx) => (
-                          <div
-                            key={sIdx}
-                            className="p-2.5 bg-white border border-slate-200 rounded-lg flex items-center justify-between gap-2 shadow-xs"
-                          >
-                            <div>
-                              <p className="text-[11px] font-bold text-slate-900">{src.title}</p>
-                              <p className="text-[10px] text-slate-500">{src.source}</p>
+                    {/* Citations */}
+                    {!isUser && m.citations && m.citations.length > 0 && (
+                      <div className="mt-4 pt-3 border-t border-slate-200 space-y-2">
+                        <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                          <Layers size={10} />
+                          Retrieved Sources ({m.citations.length})
+                        </div>
+                        <div className="grid grid-cols-1 gap-1.5">
+                          {m.citations.slice(0, 4).map((src, i) => (
+                            <div key={i} className="flex items-center justify-between gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
+                              <div className="min-w-0">
+                                <p className="text-[11px] font-semibold text-slate-900 truncate">{src.title}</p>
+                                <p className="text-[10px] text-slate-500 truncate">{src.source}</p>
+                              </div>
+                              <div className="flex items-center gap-1 shrink-0">
+                                <span className="text-[9px] font-bold text-blue-600 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded">
+                                  {src.matchedTermCount > 0 ? `${src.matchedTermCount} terms` : "match"}
+                                </span>
+                              </div>
                             </div>
-                            <span className="px-1.5 py-0.5 text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded shrink-0">
-                              {src.matchedTermCount ? `${src.matchedTermCount} query terms matched` : "LMS record"}
-                            </span>
-                          </div>
-                        ))}
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
 
-                  <span
-                    className={`block text-[10px] ${
-                      isUser ? "text-blue-100 text-right" : "text-slate-400"
-                    }`}
-                  >
-                    {m.timestamp}
-                  </span>
+                  {/* Meta row */}
+                  <div className="flex items-center gap-2 px-1">
+                    <span className="text-[10px] text-slate-400">{m.timestamp}</span>
+                    {!isUser && m.model && (
+                      <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${m.model.startsWith("gemini")
+                          ? "text-blue-600 bg-blue-50"
+                          : m.model === "error"
+                            ? "text-rose-600 bg-rose-50"
+                            : "text-slate-500 bg-slate-100"
+                        }`}>
+                        {m.model}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 {isUser && (
-                  <div className="h-9 w-9 rounded-xl bg-slate-900 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
+                  <div className="h-8 w-8 rounded-lg bg-slate-800 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-sm mt-1">
                     {currentUser?.fullName?.charAt(0) || "U"}
                   </div>
                 )}
@@ -229,60 +332,76 @@ function AIMentor() {
             );
           })}
 
+          {/* Thinking indicator */}
           {isThinking && (
-            <div className="flex gap-3.5 items-start">
-              <div className="h-9 w-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-                <Bot size={18} />
+            <div className="flex gap-3 justify-start">
+              <div className="h-8 w-8 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                <Bot size={16} />
               </div>
-              <div className="bg-slate-50 border border-slate-200/80 rounded-2xl rounded-tl-xs p-4 flex items-center gap-2 text-xs text-slate-500">
-                <Sparkles size={14} className="text-blue-600 animate-spin" />
-                Searching current LMS course and learner records...
+              <div className="bg-white border border-slate-200 rounded-2xl rounded-tl-sm px-4 py-3.5 shadow-sm">
+                <div className="flex items-center gap-2.5 text-xs text-slate-500">
+                  <div className="flex gap-1">
+                    <span className="h-2 w-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                    <span className="h-2 w-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                    <span className="h-2 w-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                  </div>
+                  <span>Retrieving and generating answer...</span>
+                </div>
               </div>
             </div>
           )}
 
           <div ref={chatEndRef} />
         </div>
-
-        {/* ── Prompt Suggestions Bar ── */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 shrink-0">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider shrink-0">
-            Suggested Queries:
-          </span>
-          {samplePrompts.map((p, idx) => (
-            <button
-              key={idx}
-              onClick={() => {
-                setSelectedDomain(p.domain);
-                setInputQuery(p.title);
-              }}
-              className="px-3 py-1 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg text-[11px] text-slate-700 font-medium whitespace-nowrap shadow-xs transition-colors"
-            >
-              {p.title}
-            </button>
-          ))}
-        </div>
-
-        {/* ── Input Box ── */}
-        <form onSubmit={handleSendMessage} className="flex gap-3 shrink-0">
-          <input
-            type="text"
-            placeholder="Ask anything across your course lectures, certification guides, or skill taxonomy..."
-            value={inputQuery}
-            onChange={(e) => setInputQuery(e.target.value)}
-            className="flex-1 bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 shadow-xs transition-colors"
-          />
-          <button
-            type="submit"
-            disabled={isThinking || !inputQuery.trim()}
-            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors disabled:opacity-50 flex items-center gap-2 shrink-0"
-          >
-            <Send size={14} />
-            Search LMS Content
-          </button>
-        </form>
       </div>
-    </DashboardLayout>
+
+      {/* ── Quick Prompts ── */}
+      {messages.length <= 1 && (
+        <div className="px-6 pb-3 shrink-0">
+          <div className="max-w-5xl mx-auto">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Quick prompts</p>
+            <div className="flex flex-wrap gap-2">
+              {quickPrompts.map((p, i) => (
+                <button
+                  key={i}
+                  onClick={() => setInputQuery(p)}
+                  className="px-3 py-1.5 bg-white border border-slate-200 hover:border-blue-400 hover:bg-blue-50 text-[11px] text-slate-600 font-medium rounded-lg shadow-sm transition-colors"
+                >
+                  {p}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Input ── */}
+      <div className="bg-white border-t border-slate-200 px-6 py-4 shrink-0">
+        <div className="max-w-5xl mx-auto">
+          <form onSubmit={handleSendMessage} className="flex gap-3">
+            <input
+              ref={inputRef}
+              type="text"
+              placeholder="Ask anything about your courses, progress, or learning goals..."
+              value={inputQuery}
+              onChange={(e) => setInputQuery(e.target.value)}
+              className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:bg-white transition-colors shadow-sm"
+            />
+            <button
+              type="submit"
+              disabled={isThinking || !inputQuery.trim()}
+              className="px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl shadow-sm transition-colors disabled:opacity-40 flex items-center gap-2 shrink-0"
+            >
+              <Send size={16} />
+              {isThinking ? "Thinking..." : "Ask"}
+            </button>
+          </form>
+          <p className="text-[10px] text-slate-400 mt-2 text-center">
+            Responses grounded in {chunkCount} indexed course content chunks via Retrieval-Augmented Generation
+          </p>
+        </div>
+      </div>
+    </div>
   );
 }
 
